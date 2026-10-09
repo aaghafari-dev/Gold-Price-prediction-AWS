@@ -1,0 +1,85 @@
+digraph AcademicArchitecture {
+    // Global graph, node, and edge styling
+    fontname="Helvetica,Arial,sans-serif"
+    labeljust="l"
+    
+    node [
+        fontname="Helvetica,Arial,sans-serif"
+        shape=box
+        style="filled,rounded"
+        fillcolor="#F8F9FA"
+        color="#202124"
+        fontcolor="#202124"
+        penwidth=1.5
+        margin="0.2,0.1"
+    ]
+    
+    edge [
+        fontname="Helvetica,Arial,sans-serif"
+        color="#5F6368"
+        penwidth=1.2
+        arrowsize=0.8
+    ]
+
+    // SECTION A: Academic Architecture
+    subgraph cluster_A {
+        #label="Academic Architecture"
+        bgcolor="#FAFAFA"
+        color="#DADCE0"
+        style="dashed,rounded"
+        margin=20
+        
+        // Data Sources Group
+        { rank=same; YahooFinance; HistoricalNews; }
+        YahooFinance [label="Yahoo Finance" shape=ellipse fillcolor="#E8F0FE" color="#1A73E8"]
+        HistoricalNews [label="Historical News" shape=ellipse fillcolor="#E8F0FE" color="#1A73E8"]
+        
+        // Assets branching under Yahoo Finance
+        { rank=same; Gold; CrossAssets; }
+        Gold [label="Gold" style=filled fillcolor="#FFF4E5" color="#E67E22"]
+        CrossAssets [label="Cross-assets" style=filled fillcolor="#FFF4E5" color="#E67E22"]
+        
+        // Main Pipeline Flow
+        S3LocalRaw [label="S3 / Local Raw Data"]
+        DataValidation [label="Data Validation"]
+        PITFeature [label="Point-in-Time Feature Engineering"]
+        WalkForward [label="Walk-Forward Evaluation" fillcolor="#E6F4EA" color="#137333"]
+        
+        // ML Models branching under Walk-Forward Evaluation
+        subgraph cluster_A_models {
+            label="Models Evaluated"
+            style=dotted
+            color="#BDC1C6"
+            Persistence; XGBoost; RandomForest; ExtraTrees; HistGradientBoosting;
+        }
+        Persistence [label="Persistence"]
+        XGBoost [label="XGBoost"]
+        RandomForest [label="Random Forest"]
+        ExtraTrees [label="Extra Trees"]
+        HistGradientBoosting [label="HistGradientBoosting"]
+        
+        // Rest of the linear flow
+        Governance [label="Governance"]
+        SageMakerRegistry [label="SageMaker Model Registry" fillcolor="#FCE8E6" color="#C5221F"]
+        SageMakerEndpoint [label="SageMaker Endpoint" fillcolor="#FCE8E6" color="#C5221F"]
+        FastAPIDashboard [label="FastAPI / Dashboard"]
+        CloudWatchDrift [label="CloudWatch + Drift Jobs"]
+        Retraining [label="Retraining" style="filled,bold" fillcolor="#E8F0FE" color="#1A73E8"]
+
+        // Connections
+        YahooFinance -> Gold;
+        YahooFinance -> CrossAssets;
+        YahooFinance -> S3LocalRaw;
+        HistoricalNews -> S3LocalRaw;
+        
+        S3LocalRaw -> DataValidation -> PITFeature -> WalkForward;
+        
+        WalkForward -> Persistence;
+        WalkForward -> XGBoost;
+        WalkForward -> RandomForest;
+        WalkForward -> ExtraTrees;
+        WalkForward -> HistGradientBoosting;
+        
+        WalkForward -> Governance -> SageMakerRegistry -> SageMakerEndpoint -> FastAPIDashboard -> CloudWatchDrift -> Retraining;
+    }
+}
