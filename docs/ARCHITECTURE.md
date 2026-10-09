@@ -1,184 +1,176 @@
 # Architecture
 
-## A. Academic / Ironhack architecture
+## &#x20;                MARKET DATA
 
-```text
-Yahoo Finance
-     │
-     ├── Gold
-     └── Cross-assets
-     │
-Historical News
-     │
-     ▼
-S3 / Local Raw Data
-     │
-     ▼
-Data Validation
-     │
-     ▼
-Point-in-Time Feature Engineering
-     │
-     ▼
-Walk-Forward Evaluation
-     │
-     ├── Persistence
-     ├── XGBoost
-     ├── Random Forest
-     ├── Extra Trees
-     └── HistGradientBoosting
-     │
-     ▼
-Governance
-     │
-     ▼
-SageMaker Model Registry
-     │
-     ▼
-SageMaker Endpoint
-     │
-     ▼
-FastAPI / Dashboard
-     │
-     ▼
-CloudWatch + Drift Jobs
-     │
-     ▼
-Retraining
-```
+## &#x20;     ┌────────────────────────────┐
 
-## B. Commercial architecture
+## &#x20;     │ Gold                       			│
 
-```text
-                DATA PROVIDERS
- ┌──────────────────────┬──────────────────────┐
- │ Market / Macro       │ News / Events        │
- │ licensed, PIT        │ licensed, PIT        │
- └──────────┬───────────┴──────────┬───────────┘
-            │                      │
-            └──────────┬───────────┘
-                       ▼
-                 S3 DATA LAKE
-          raw / bronze / silver / gold
-                       │
-                       ▼
-              DATA QUALITY LAYER
-       schema + freshness + validity + lineage
-                       │
-                       ▼
-             FEATURE ENGINEERING
-     market + macro + NLP + event + regime
-                       │
-             ┌─────────┴─────────┐
-             ▼                   ▼
-        Offline Store       Online Store
-             │                   │
-             └─────────┬─────────┘
-                       ▼
-                MODEL TRAINING
-       baselines + ML + ensemble candidates
-                       │
-                       ▼
-             WALK-FORWARD BACKTEST
-                       │
-                       ▼
-                 MODEL RISK GATE
-                       │
-                       ▼
-                MODEL REGISTRY
-                       │
-                       ▼
-             APPROVAL / DEPLOYMENT
-                       │
-              ┌────────┴────────┐
-              ▼                 ▼
-         Batch Forecast     Real-time API
-              │                 │
-              └────────┬────────┘
-                       ▼
-                MONITORING
-        data + drift + quality + latency
-                       │
-                       ▼
-              ALERT / RETRAINING
-                       │
-                       └───────────────►
-```
+## &#x20;     │ DXY                       			│
 
-## C. Recommended prediction design
+## &#x20;     │ Silver                     			│
 
-Use three outputs:
+## &#x20;     │ Oil                        			│
 
-1. point estimate,
-2. prediction interval,
-3. direction/probability.
+## &#x20;     │ S\&P 500                    			│
 
-Example:
+## &#x20;     │ VIX                        			│
 
-```text
-Next-day gold price:
-$2,850/oz
+## &#x20;     │ US 10Y                     			│
 
-80% interval:
-$2,805–$2,900
+## &#x20;     │ EUR/USD                    			│
 
-Probability of positive return:
-61%
-```
+## &#x20;     │ USD/JPY                    			│
 
+## &#x20;     └─────────────┬──────────────┘
 
-## D. News design
+## &#x20;                   	│
 
-```text
-Article
-  │
-  ├── timestamp
-  ├── source
-  ├── title/body
-  ├── entities
-  ├── topics
-  └── event type
-        │
-        ▼
-     NLP model
-        │
-        ├── sentiment
-        ├── relevance
-        ├── event probability
-        └── novelty
-        │
-        ▼
-Recency-weighted event features
-        │
-        ▼
-Forecast feature vector
-```
+## &#x20;                   	▼
 
-```
+## &#x20;            ┌─────────────┐
 
-## F. Failure handling
+## &#x20;            │     S3          │
 
-### Market data unavailable
+## &#x20;            │  Data Lake      │
 
-Use last validated dataset only for monitoring; do not silently fabricate new
-observations.
+## &#x20;            └──────┬──────┘
 
-### News provider unavailable
+## &#x20;                     │
 
-Mark news features as unavailable and either:
+## &#x20;                     │
 
-- fail closed, or
-- route to a model version explicitly trained without news.
+## &#x20;     ┌───────────▼──────────────┐
 
-Do not silently replace missing news with zero if the production model depends on
-news.
+## &#x20;     │      NEWS DATA             		  │
 
-### Model unavailable
+## &#x20;     │                                  │
 
-Return an explicit service-unavailable state rather than silently claiming a
-prediction from an unknown model.
+## &#x20;     │ Historical articles              │
 
-### Drift detected
+## &#x20;     │ Publication timestamp            │
 
-Do not immediately deploy a new model. Trigger a challenger workflow.
+## &#x20;     │ Source                           │
+
+## &#x20;     │ Gold relevance                   │
+
+## &#x20;     │ Sentiment                        │
+
+## &#x20;     │ Events                           │
+
+## &#x20;     └─────────────┬────────────┘
+
+## &#x20;                       │
+
+## &#x20;                       ▼
+
+## &#x20;      ┌─────────────────────────────┐
+
+## &#x20;      │ Data Quality + Point-in-Time        │
+
+## &#x20;      │ Alignment                           │
+
+## &#x20;      └──────────────┬──────────────┘
+
+## &#x20;                         │
+
+## &#x20;                         ▼
+
+## &#x20;      ┌─────────────────────────────┐
+
+## &#x20;      │ Feature Engineering                 │
+
+## &#x20;      │                                     │
+
+## &#x20;      │ Market                              │
+
+## &#x20;      │ Macro                               │
+
+## &#x20;      │ News sentiment                      │
+
+## &#x20;      │ News events                         │
+
+## &#x20;      │ Volatility                          │
+
+## &#x20;      │ Momentum                            │
+
+## &#x20;      └──────────────┬──────────────┘
+
+## &#x20;                         │
+
+## &#x20;                         ▼
+
+## &#x20;         ┌──────────────────────┐
+
+## &#x20;         │ Walk-Forward Testing       │
+
+## &#x20;         └──────────┬───────────┘
+
+## &#x20;                       │
+
+## &#x20;       ┌───────────┼────────────┐
+
+## &#x20;       ▼              ▼               ▼
+
+## &#x20;    XGBoost           RF/ET       Baselines
+
+## &#x20;       │               │               │
+
+## &#x20;       └────────────┼────────────┘
+
+## &#x20;                       ▼
+
+## &#x20;            Model Governance
+
+## &#x20;                      │
+
+## &#x20;            ┌───────┴────────┐
+
+## &#x20;            │                    │
+
+## &#x20;         REJECT               ACCEPT
+
+## &#x20;            │                    │
+
+## &#x20;            │                    ▼
+
+## &#x20;            │              SageMaker Model
+
+## &#x20;            │                Registry
+
+## &#x20;            │                    │
+
+## &#x20;            │                    ▼
+
+## &#x20;            │              Approval Gate
+
+## &#x20;            │                    │
+
+## &#x20;            │                    ▼
+
+## &#x20;            │             SageMaker Endpoint
+
+## &#x20;            │                    │
+
+## &#x20;            │                    ▼
+
+## &#x20;            │             FastAPI / Client
+
+## &#x20;            │                    │
+
+## &#x20;            └───────┐          ▼
+
+## &#x20;                      │   Monitoring
+
+## &#x20;                      │        │
+
+## &#x20;                      │        ▼
+
+## &#x20;                      │   Drift / Error
+
+## &#x20;                      │        │
+
+## &#x20;                      │        ▼
+
+## &#x20;                      └── Retraining
 
