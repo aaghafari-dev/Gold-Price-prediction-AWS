@@ -1,0 +1,102 @@
+digraph Serving {
+    graph [
+        rankdir=TB,
+        bgcolor="#0B1220",
+        pad=.25,
+        nodesep=.42,
+        ranksep=.62,
+        fontname=Arial,
+        label="REAL-TIME SERVING, MONITORING & RETRAINING RULES",
+        labelloc=t,
+        fontcolor=white,
+        fontsize=18
+    ];
+
+    node [
+        shape=box,
+        style="rounded,filled",
+        fontname=Arial,
+        fontsize=10,
+        margin=".13,.09",
+        color="#CBD5E1"
+    ];
+
+    edge [
+        color="#94A3B8",
+        penwidth=1.4,
+        arrowsize=.7
+    ];
+
+    client [
+        label="Client / dashboard\nHTTPS JSON request",
+        fillcolor="#DBEAFE",
+        fontcolor="#172554"
+    ];
+
+    ep [
+        label="SageMaker Endpoint\napproved registry version",
+        fillcolor="#C2410C",
+        fontcolor=white
+    ];
+
+    valid [
+        label="Input schema + feature order\nreject missing/unexpected/non-finite values",
+        fillcolor="#CCFBF1",
+        fontcolor="#134E4A"
+    ];
+
+    resp [
+        label="Prediction response\nprice estimate + model version\nnot investment advice",
+        fillcolor="#EDE9FE",
+        fontcolor="#3B0764"
+    ];
+
+    capture [
+        label="Endpoint data capture\nS3 + Model Monitor baseline",
+        fillcolor="#FCE7F3",
+        fontcolor="#831843"
+    ];
+
+    cw [
+        label="CloudWatch alarms\n5xx >1% / 5 min\np95 latency >2s / 5 min (initial SLO)",
+        fillcolor="#FEF3C7",
+        fontcolor="#78350F"
+    ];
+
+    drift [
+        label="Drift investigation\nthreshold breached for 2 windows\nwarning ≠ performance degradation",
+        fillcolor="#FDE68A",
+        fontcolor="#78350F"
+    ];
+
+    labels [
+        label="Delayed actual prices\nrolling MAE/RMSE vs approved baseline\ntrigger if >10% worse for 3 windows\nmin 30 labelled sessions",
+        fillcolor="#DBEAFE",
+        fontcolor="#172554"
+    ];
+
+    pipe [
+        label="EventBridge → SageMaker Pipeline\nnew candidate; evaluation gate\nModel Registry + human approval",
+        fillcolor="#6D28D9",
+        fontcolor=white
+    ];
+
+    client -> ep -> valid -> resp;
+    ep -> capture -> cw;
+    capture -> drift;
+    labels -> pipe;
+
+    cw -> pipe [
+        label="investigate/recover",
+        style=dashed,
+        fontcolor=white,
+        color="#FFFFFF"
+    ];
+
+    drift -> pipe [
+        label="candidate only",
+        style=dashed,
+        fontcolor=white,
+        color="#FFFFFF"
+    ];
+}

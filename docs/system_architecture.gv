@@ -1,0 +1,44 @@
+digraph GoldSystemArchitecture {
+  graph [label="Gold Price Prediction — End-to-End System Architecture", labelloc=t, fontsize=22, fontname="Arial", rankdir=LR, splines=ortho, nodesep=0.35, ranksep=0.7, pad=0.25, bgcolor="white"];
+  node [shape=box, style="rounded,filled", fontname="Arial", fontsize=10, color="#486581", fillcolor="#F0F4F8", margin="0.14,0.09"];
+  edge [fontname="Arial", fontsize=9, color="#627D98", arrowsize=0.75];
+  subgraph cluster_sources { label="1. Public data sources"; color="#9FB3C8"; style="rounded";
+    yahoo [label="Yahoo Finance\nGold + cross-asset prices"];
+    ynews [label="Yahoo Finance news\nAvailable ticker news"];
+    gdelt [label="GDELT DOC API\nPublic recent article metadata"];
+  }
+  subgraph cluster_ingest { label="2. Ingestion and storage"; color="#9FB3C8"; style="rounded";
+    market_ingest [label="Market data adapter"];
+    news_ingest [label="News adapters\nNormalize schema + timestamps"];
+    raw [label="Raw data layer\nCSV locally / S3 in AWS", fillcolor="#E3F2FD"];
+    quality [label="Data quality checks\nMissingness • duplicates • freshness"];
+  }
+  subgraph cluster_features { label="3. Point-in-time feature engineering"; color="#9FB3C8"; style="rounded";
+    cutoff [label="Forecast cutoff\nExclude future information", fillcolor="#FFF3CD"];
+    mfeat [label="Market features\nReturns • lags • volatility"];
+    nfeat [label="News features\nCounts • lexicon sentiment • shares"];
+    dataset [label="Versioned feature table"];
+  }
+  subgraph cluster_ml { label="4. Model development"; color="#9FB3C8"; style="rounded";
+    split [label="Chronological walk-forward split"];
+    base [label="Baseline\nPersistence"];
+    market_model [label="Market-only model"];
+    news_model [label="Market + news model"];
+    eval [label="Evaluation\nMAE • RMSE • direction"];
+    gate [shape=diamond, label="Beats baseline\nand passes checks?", fillcolor="#FFF3CD"];
+    registry [label="Model version + metadata", fillcolor="#E8F5E9"];
+  }
+  subgraph cluster_serving { label="5. Inference and operations"; color="#9FB3C8"; style="rounded";
+    api [label="FastAPI / client"];
+    endpoint [label="SageMaker endpoint\nOptional managed inference", fillcolor="#EDE7F6"];
+    monitor [label="Monitoring\nFreshness • latency • drift • errors"];
+    retrain [label="Scheduled / triggered retraining"];
+  }
+  yahoo -> market_ingest; ynews -> news_ingest; gdelt -> news_ingest;
+  market_ingest -> raw; news_ingest -> raw; raw -> quality;
+  quality -> cutoff; cutoff -> mfeat; cutoff -> nfeat; mfeat -> dataset; nfeat -> dataset;
+  dataset -> split; split -> base; split -> market_model; split -> news_model;
+  base -> eval; market_model -> eval; news_model -> eval; eval -> gate;
+  gate -> registry [label="yes"]; gate -> split [label="no / revise", style=dashed];
+  registry -> endpoint; registry -> api; endpoint -> monitor; api -> monitor; monitor -> retrain [style=dashed]; retrain -> raw [label="new data", style=dashed];
+}

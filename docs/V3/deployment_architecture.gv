@@ -1,0 +1,104 @@
+digraph Deploy {
+    graph [
+        rankdir=TB,
+        bgcolor="#0B1220",
+        pad=.25,
+        nodesep=.42,
+        ranksep=.62,
+        fontname=Arial,
+        label="DEPLOYMENT — LOCAL DEV VS AWS PRODUCTION (DO NOT CONFUSE THEM)",
+        labelloc=t,
+        fontcolor=white,
+        fontsize=18
+    ];
+
+    node [
+        shape=box,
+        style="rounded,filled",
+        fontname=Arial,
+        fontsize=10,
+        margin=".13,.09",
+        color="#CBD5E1"
+    ];
+
+    edge [
+        color="#94A3B8",
+        penwidth=1.4,
+        arrowsize=.7
+    ];
+
+    subgraph cluster_local {
+        label="LOCAL DEVELOPMENT ONLY";
+        color="#64748B";
+        fontcolor="#CBD5E1";
+        style=rounded;
+
+        gui [
+            label="Local PC\n + Python 3.11 GUI\nunit tests / smoke tests",
+            fillcolor="#334155",
+            fontcolor=white
+        ];
+
+        local [
+            label="Optional local scripts\nsmall debugging data\nnot the production compute plane",
+            fillcolor="#475569",
+            fontcolor=white
+        ];
+
+        gui -> local;
+    }
+
+    subgraph cluster_cloud {
+        label="AWS TARGET / PRODUCTION";
+        color="#2563EB";
+        fontcolor="#93C5FD";
+        style=rounded;
+
+        git [
+            label="GitHub repository\nversioned source + CI checks",
+            fillcolor="#1D4ED8",
+            fontcolor=white
+        ];
+
+        s3 [
+            label="S3 data + model artifact store",
+            fillcolor="#DBEAFE",
+            fontcolor="#172554"
+        ];
+
+        proc [
+            label="SageMaker Processing\nmanaged data prep",
+            fillcolor="#0F766E",
+            fontcolor=white
+        ];
+
+        train [
+            label="SageMaker Training Jobs\nmanaged compute",
+            fillcolor="#5B21B6",
+            fontcolor=white
+        ];
+
+        reg [
+            label="Model Registry\napproval gate",
+            fillcolor="#DDD6FE",
+            fontcolor="#3B0764"
+        ];
+
+        endpoint [
+            label="SageMaker Endpoint\nmanaged inference",
+            fillcolor="#C2410C",
+            fontcolor=white
+        ];
+
+        git -> proc -> train -> reg -> endpoint;
+        s3 -> proc;
+        s3 -> train;
+    }
+
+    local -> git [
+        label="commit/push + deploy pipeline",
+        style=dashed,
+        fontcolor=white,
+        color="#FFFFFF"
+    ];
+}
