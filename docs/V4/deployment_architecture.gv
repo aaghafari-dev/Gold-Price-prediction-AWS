@@ -1,0 +1,21 @@
+digraph G {
+rankdir=TB;graph [bgcolor="#0B1220", pad="0.25", nodesep="0.28", ranksep="0.42", splines=ortho, fontname="Segoe UI", labeljust="c", labelloc="t"];
+node [shape=box, style="rounded,filled", fontname="Segoe UI", fontsize=10, color="#49617F", fontcolor="#F5F7FB", margin="0.16,0.10", penwidth=1.2];
+edge [color="#7C9BC5", penwidth=1.4, arrowsize=0.75, fontname="Segoe UI", fontsize=9, fontcolor="#C9D7EA"];
+
+subgraph cluster_local {label="LOCAL — development, test, visualization only";color="#64748B";fontcolor="#CBD5E1";style="rounded,dashed";
+ vscode [label=" GUI\nUnit tests • local sample runs ",fillcolor="#334155"];
+ cli [label="AWS CLI SSO / SDK identity\nShort-lived session; IAM least privilege; no password in GUI",fillcolor="#334155"];
+}
+subgraph cluster_aws {label="AWS — all production data processing, training and serving";color="#22D3EE";fontcolor="#67E8F9";style="rounded";
+ event [label="EventBridge Scheduler",fillcolor="#164E63"];
+ lambda [label="Lambda ingestion + orchestration\nFetch Yahoo market/news metadata; normalize basic schema; log run",fillcolor="#155E75"];
+ s3 [label="S3 raw / curated / model artifacts",fillcolor="#14532D"];
+ processing [label="SageMaker Processing\nHeavier feature engineering, time split, leakage/data-quality audit",fillcolor="#1D4ED8"];
+ training [label="SageMaker Training / Experiments / Tuning",fillcolor="#6D28D9"];
+ registry [label="Model Registry + manual approval",fillcolor="#92400E"];
+ endpoint [label="SageMaker Endpoint",fillcolor="#0F766E"];
+ monitor [label="Model Monitor + CloudWatch + EventBridge retraining trigger",fillcolor="#334155"];
+}
+vscode -> cli [label="submit via SDK/CLI"]; event -> lambda -> s3 -> processing -> training -> registry -> endpoint -> monitor -> training [label="trigger new candidate; human approval still required"];
+}

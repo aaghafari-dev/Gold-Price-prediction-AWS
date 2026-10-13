@@ -1,0 +1,17 @@
+digraph G {
+rankdir=TB;graph [bgcolor="#0B1220", pad="0.25", nodesep="0.28", ranksep="0.42", splines=ortho, fontname="Segoe UI", labeljust="c", labelloc="t"];
+node [shape=box, style="rounded,filled", fontname="Segoe UI", fontsize=10, color="#49617F", fontcolor="#F5F7FB", margin="0.16,0.10", penwidth=1.2];
+edge [color="#7C9BC5", penwidth=1.4, arrowsize=0.75, fontname="Segoe UI", fontsize=9, fontcolor="#C9D7EA"];
+
+data [label="Curated features + split manifest from SageMaker Processing\nFinal test remains untouched during selection",fillcolor="#164E63"];
+baseline [label="Persistence baseline\npredicted gold close(t+1)=gold close(t)\nReference MAE / RMSE computed on same dates as each model",fillcolor="#0F766E"];
+models [label="Candidate families\nARIMA: univariate benchmark only (not promotable without inference adapter)\nXGBoost / Random Forest / Extra Trees / HistGradientBoosting\nTrain-only scaling/selection where required",fillcolor="#1D4ED8"];
+cv [label="Expanding-window walk-forward CV\n5 folds by default; gap=forecast horizon (1 market row)\nSame out-of-sample dates and baseline for fair comparison",fillcolor="#5B21B6"];
+tuning [label="Hyperparameter tuning (bounded)\nSageMaker Automatic Model Tuning / predefined small search\nOptimize validation RMSE; never tune on final test",fillcolor="#6D28D9"];
+metrics [label="Evaluation report\nPrimary: RMSE + MAE; secondary: directional accuracy\nPer-fold metrics, confidence/variance, runtime, data/feature lineage",fillcolor="#0F766E"];
+feature [label="Feature selection and ablation\nMarket-only vs market+news on identical folds\nKeep sentiment only if reproducible out-of-sample gain",fillcolor="#92400E"];
+gate [label="Quality gate (initial project policy)\nLeakage audit PASS; valid metrics; beat persistence RMSE\n≥2% RMSE improvement for candidate; news coverage ≥80% for news model\nThresholds configurable and reported, not claimed as achieved",fillcolor="#991B1B"];
+registry [label="SageMaker Experiments + Model Registry\nTrack parameters/metrics/artifacts; register passing model version\nPendingManualApproval; human checks model card and costs",fillcolor="#14532D"];
+reject [label="Reject / no candidate\nWrite model_comparison.csv, training_result.json, candidate_manifest.json\nExplain no-baseline-beat / leakage / coverage / quality rejection",fillcolor="#7F1D1D"];
+data -> baseline; data -> models -> cv; baseline -> metrics; cv -> tuning -> metrics -> feature -> gate; gate -> registry [label="PASS"]; gate -> reject [label="FAIL"];
+}

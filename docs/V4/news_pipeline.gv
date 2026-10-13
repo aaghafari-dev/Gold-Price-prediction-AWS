@@ -1,0 +1,16 @@
+digraph G {
+rankdir=TB;graph [bgcolor="#0B1220", pad="0.25", nodesep="0.28", ranksep="0.42", splines=ortho, fontname="Segoe UI", labeljust="c", labelloc="t"];
+node [shape=box, style="rounded,filled", fontname="Segoe UI", fontsize=10, color="#49617F", fontcolor="#F5F7FB", margin="0.16,0.10", penwidth=1.2];
+edge [color="#7C9BC5", penwidth=1.4, arrowsize=0.75, fontname="Segoe UI", fontsize=9, fontcolor="#C9D7EA"];
+
+ui [label="GUI / scheduled trigger\nUser selects ticker (default GC=F), max count, lookback days\n1 / 3 / 7 / 14 / 30 days",fillcolor="#164E63"];
+adapter [label="yfinance.Ticker(symbol).get_news(count=N, tab='news')\nProvider feed request; no user API key\nNo requests to article URLs and no web scraping",fillcolor="#1D4ED8"];
+parse [label="Provider response normalization\nHandle nested content/title/summary/pubDate/providerPublishTime\nNormalize publication timestamp to UTC; retrieved_at=UTC now",fillcolor="#0F766E"];
+clean [label="Cleaning + deduplication\nTrim title/summary; reject missing title or invalid publication time\nDeduplicate on published_at + title + URL",fillcolor="#0F766E"];
+combine [label="Text used for sentiment\ntext = clean(title) + ' ' + clean(summary)\nEmpty summary allowed; retain title and summary separately",fillcolor="#6D28D9"];
+sent [label="Baseline lexicon sentiment (English)\nUnique token matches in fixed POSITIVE and NEGATIVE word sets\nscore=(positive_count-negative_count)/max(1, positive_count+negative_count)\nNot FinBERT, not an LLM; evaluate usefulness by ablation",fillcolor="#6D28D9"];
+agg [label="Session alignment + daily aggregation\nOnly news published before forecast cutoff is eligible\nAggregate count / mean sentiment / std / positive share / negative share\nShift news features at least one market row for next-session target",fillcolor="#7C2D12"];
+store [label="Persist archive + ingestion log\ndata/raw/news.csv and news_ingestion_log.csv\nEvery attempt logged even if zero returned rows",fillcolor="#14532D"];
+coverage [label="Coverage and leakage gate\nRecent-window metadata is not proof of historical completeness\nIf insufficient eligible session coverage: disable market+news model",fillcolor="#92400E"];
+ui -> adapter -> parse -> clean -> combine -> sent -> agg -> store -> coverage;
+}
