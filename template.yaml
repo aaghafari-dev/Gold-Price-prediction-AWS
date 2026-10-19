@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Gold Price Prediction V14 - scheduled educational Yahoo Finance market-data collector.
+Description: Gold Price Prediction V18 - scheduled educational Yahoo Finance market-data collector.
 Globals:
   Function:
     Runtime: python3.11

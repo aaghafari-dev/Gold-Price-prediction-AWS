@@ -10,4 +10,4 @@ Write-Host "AWS_DEFAULT_REGION: $($env:AWS_DEFAULT_REGION)"
 Write-Host 'Calling STS to verify the currently configured identity...'
 aws sts get-caller-identity
 if ($LASTEXITCODE -ne 0) { throw 'AWS identity check failed. Configure an AWS CLI profile or approved environment credentials.' }
-Write-Host 'Preflight passed. Review docs/AWS_IRONHACK_RUNBOOK.md before deploying.' -ForegroundColor Green
+Write-Host 'Preflight passed. Review docs/AWS_project_RUNBOOK.md before deploying.' -ForegroundColor Green

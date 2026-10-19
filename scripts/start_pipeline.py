@@ -17,18 +17,18 @@ def main():
         code = exc.response.get("Error", {}).get("Code", "")
         if code not in {"ResourceNotFound", "ValidationException"}:
             raise
-        sm.create_model_package_group(ModelPackageGroupName=SAGEMAKER_MODEL_PACKAGE_GROUP, ModelPackageGroupDescription="Ironhack Gold Price Prediction V7 educational candidates")
+        sm.create_model_package_group(ModelPackageGroupName=SAGEMAKER_MODEL_PACKAGE_GROUP, ModelPackageGroupDescription="project Gold Price Prediction V18 educational candidates")
 
-    experiment_name = "GoldPricePredictionV7"
+    experiment_name = "GoldPricePredictionV18"
     try:
         sm.describe_experiment(ExperimentName=experiment_name)
     except sm.exceptions.ClientError as exc:
         if exc.response.get("Error", {}).get("Code") not in {"ResourceNotFound", "ValidationException"}:
             raise
-        sm.create_experiment(ExperimentName=experiment_name, DisplayName="Gold Price Prediction V7", Description="Ironhack end-to-end gold-futures proxy forecasting project")
+        sm.create_experiment(ExperimentName=experiment_name, DisplayName="Gold Price Prediction V18", Description="project end-to-end gold-futures proxy forecasting project")
 
     module.pipeline.upsert(role_arn=module.ROLE)
-    trial_name = "gold-v7-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    trial_name = "gold-v18-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     execution = module.pipeline.start(experiment_config={"ExperimentName": experiment_name, "TrialName": trial_name})
     print(f"Pipeline={module.pipeline.name}\nExecutionArn={execution.arn}\nExperiment={experiment_name}\nTrial={trial_name}")
 

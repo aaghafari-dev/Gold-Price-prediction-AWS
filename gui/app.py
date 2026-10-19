@@ -1,4 +1,4 @@
-"""Gold Price Prediction V16 desktop control center.
+"""Gold Price Prediction V18 desktop control center.
 
 A non-Streamlit, Windows-friendly Tkinter GUI for data ingestion, preparation,
 training, candidate approval, API startup, and review of training artifacts.
@@ -17,7 +17,7 @@ class GoldApp(tk.Tk):
     def __init__(self):
         """Initialize theme, controls, event queue, and dashboard layout."""
         super().__init__()
-        self.title("Project | Gold Price Intelligence")
+        self.title("Gold Price Intelligence")
         self.geometry("1180x790")
         self.minsize(980, 680)
         self.configure(bg="#0b1220")
@@ -56,8 +56,8 @@ class GoldApp(tk.Tk):
         """Build header, workflow controls, results table, and live console."""
         header = tk.Frame(self, bg="#0b1220", padx=24, pady=18)
         header.pack(fill="x")
-        ttk.Label(header, text="Gold Price prediction", style="Hero.TLabel").pack(anchor="w")
-        ttk.Label(header, text="GOLD PRICE INTELLIGENCE  /  RESEARCH WORKBENCH  ", style="SubHero.TLabel").pack(anchor="w", pady=(3,0))
+        ttk.Label(header, text="GOLD PRICE PREDICTION", style="Hero.TLabel").pack(anchor="w")
+        ttk.Label(header, text="GOLD PRICE INTELLIGENCE  /  RESEARCH WORKBENCH ", style="SubHero.TLabel").pack(anchor="w", pady=(3,0))
         self.status = tk.StringVar(value="READY  •  Local mode  •  No cloud resources launched")
         tk.Label(header, textvariable=self.status, bg="#102b32", fg="#7de2c5", padx=12, pady=7, font=("Segoe UI", 9, "bold")).pack(anchor="e", side="right", pady=(0,5))
         notebook = ttk.Notebook(self)
@@ -65,10 +65,14 @@ class GoldApp(tk.Tk):
         self.workflow_tab = ttk.Frame(notebook, padding=16)
         self.results_tab = ttk.Frame(notebook, padding=16)
         self.about_tab = ttk.Frame(notebook, padding=16)
+        self.forecast_tab = ttk.Frame(notebook, padding=16)
+        self.aws_tab = ttk.Frame(notebook, padding=16)
         notebook.add(self.workflow_tab, text="  WORKFLOW  ")
         notebook.add(self.results_tab, text="  MODEL RESULTS  ")
+        notebook.add(self.forecast_tab, text="  FORECAST CENTER  ")
+        notebook.add(self.aws_tab, text="  AWS CONTROL CENTER  ")
         notebook.add(self.about_tab, text="  METHOD & HELP  ")
-        self._build_workflow(); self._build_results(); self._build_about()
+        self._build_workflow(); self._build_results(); self._build_about(); self._build_forecast_tab(); self._build_aws_tab()
         footer = tk.Frame(self, bg="#0b1220", padx=18, pady=8)
         footer.pack(fill="x")
         tk.Label(footer, text="RESEARCH PROTOTYPE  •  Validate data coverage and out-of-sample results before any financial use", bg="#0b1220", fg="#8294ae", font=("Segoe UI", 8)).pack(side="left")
@@ -143,8 +147,6 @@ class GoldApp(tk.Tk):
         ttk.Button(row1, text="Prepare Market + Features", command=self.prepare).pack(side="left", padx=5, pady=4)
         ttk.Button(row1, text="Train & Evaluate", style="Gold.TButton", command=self.train).pack(side="left", padx=5, pady=4)
         ttk.Button(row1, text="Approve Candidate", command=self.approve).pack(side="left", padx=5, pady=4)
-        ttk.Button(row1, text="Start Local API", command=self.start_api).pack(side="left", padx=5, pady=4)
-        ttk.Button(row1, text="Open API Docs", command=lambda: webbrowser.open("http://127.0.0.1:8000/docs")).pack(side="left", padx=5, pady=4)
         row2 = tk.Frame(actions, bg="#111c2f"); row2.pack(fill="x", pady=(6,0))
         ttk.Button(row2, text="Refresh Results", command=self._refresh_metrics).pack(side="left", padx=5)
         ttk.Button(row2, text="Audit News Archive", command=self.audit_news).pack(side="left", padx=5)
@@ -152,13 +154,9 @@ class GoldApp(tk.Tk):
         ttk.Button(row2, text="Run Tests", command=self.run_tests).pack(side="left", padx=5)
         ttk.Button(row2, text="Plot Market Data", command=self.plot_market_data).pack(side="left", padx=5)
         row3 = tk.Frame(actions, bg="#111c2f"); row3.pack(fill="x", pady=(5,0))
-        ttk.Button(row3, text="AWS: Check Identity", command=self.aws_check_identity).pack(side="left", padx=5)
-        ttk.Button(row3, text="AWS: Preflight", command=self.aws_preflight).pack(side="left", padx=5)
-        ttk.Button(row3, text="SAM Validate", command=self.sam_validate).pack(side="left", padx=5)
-        ttk.Button(row3, text="SAM Build", command=self.sam_build).pack(side="left", padx=5)
-        ttk.Button(row3, text="AWS Runbook", command=lambda: webbrowser.open((ROOT / "docs" / "AWS_IRONHACK_RUNBOOK.md").as_uri())).pack(side="left", padx=5)
         ttk.Button(row3, text="Open Project Folder", command=lambda: os.startfile(ROOT)).pack(side="left", padx=5)
         ttk.Button(row3, text="Stop Current Task", command=self.stop_process).pack(side="left", padx=5)
+        ttk.Label(row3, text="Cloud commands and deployment are managed in the AWS CONTROL CENTER tab.", style="Muted.TLabel").pack(side="left", padx=12)
         console_frame = ttk.LabelFrame(pane, text="03  LIVE RUN CONSOLE", padding=8); console_frame.pack(fill="both", expand=True)
         self.console = tk.Text(console_frame, height=13, bg="#07101d", fg="#c7d7eb", insertbackground="white", relief="flat", font=("Cascadia Mono", 9), wrap="word")
         sb = ttk.Scrollbar(console_frame, orient="vertical", command=self.console.yview); self.console.configure(yscrollcommand=sb.set)
@@ -284,7 +282,16 @@ class GoldApp(tk.Tk):
                         env[key] = str(value).strip()
             except Exception as exc:
                 self._log(f"Warning: could not parse .env for AWS settings: {type(exc).__name__}: {exc}")
-        env.setdefault("AWS_DEFAULT_REGION", "eu-central-1")
+        region_var = getattr(self, "aws_region_var", None)
+        profile_var = getattr(self, "aws_profile_var", None)
+        if region_var and region_var.get().strip():
+            env["AWS_DEFAULT_REGION"] = region_var.get().strip()
+        else:
+            env.setdefault("AWS_DEFAULT_REGION", "eu-central-1")
+        if profile_var and profile_var.get().strip():
+            profile = profile_var.get().strip()
+            if profile.lower() == "default": env.pop("AWS_PROFILE", None)
+            else: env["AWS_PROFILE"] = profile
         return env
 
     def _resolve_cli(self, command):
@@ -337,7 +344,7 @@ class GoldApp(tk.Tk):
         """Verify AWS identity; provide specific guidance when the token is invalid."""
         aws_exe = self._resolve_cli("aws")
         if not aws_exe:
-            messagebox.showerror("AWS CLI not found", "The GUI could not resolve aws.exe. Your terminal may have a newer PATH than this already-running GUI. Close all VS Code windows, reopen VS Code, confirm `aws --version`, then retry. You can also open the project from a fresh terminal. See docs/AWS_IRONHACK_RUNBOOK.md.")
+            messagebox.showerror("AWS CLI not found", "The GUI could not resolve aws.exe. Your terminal may have a newer PATH than this already-running GUI. Close all VS Code windows, reopen VS Code, confirm `aws --version`, then retry. You can also open the project from a fresh terminal. See docs/V18_AWS_BEGINNER_ROADMAP.md.")
             self._log("AWS CLI executable not resolved by PATH, where.exe, PowerShell, or common install locations. No AWS request was made.")
             return
         self._log(f"AWS CLI resolved to: {aws_exe}")
@@ -348,7 +355,7 @@ class GoldApp(tk.Tk):
         """Validate the SAM template without creating AWS resources."""
         sam_exe = self._resolve_cli("sam")
         if not sam_exe:
-            messagebox.showerror("SAM CLI not resolved", "Your terminal reports SAM CLI installed, but this GUI cannot currently resolve sam.exe. Close all VS Code windows and reopen them from a fresh terminal. If it still fails, add the folder containing sam.exe to the Windows user PATH and restart. See docs/AWS_IRONHACK_RUNBOOK.md.")
+            messagebox.showerror("SAM CLI not resolved", "Your terminal reports SAM CLI installed, but this GUI cannot currently resolve sam.exe. Close all VS Code windows and reopen them from a fresh terminal. If it still fails, add the folder containing sam.exe to the Windows user PATH and restart. See docs/V18_AWS_BEGINNER_ROADMAP.md.")
             self._log("SAM Validate: sam.exe was not resolved; checked PATH, where.exe, PowerShell and common install folders. No validation ran.")
             return
         self._log(f"SAM CLI resolved to: {sam_exe}")
@@ -358,16 +365,219 @@ class GoldApp(tk.Tk):
         """Build SAM resources locally; does not deploy them."""
         sam_exe = self._resolve_cli("sam")
         if not sam_exe:
-            messagebox.showerror("SAM CLI not resolved", "Your terminal reports SAM CLI installed, but this GUI cannot currently resolve sam.exe. Close all VS Code windows and reopen them from a fresh terminal. If it still fails, add the folder containing sam.exe to the Windows user PATH and restart. See docs/AWS_IRONHACK_RUNBOOK.md.")
+            messagebox.showerror("SAM CLI not resolved", "Your terminal reports SAM CLI installed, but this GUI cannot currently resolve sam.exe. Close all VS Code windows and reopen them from a fresh terminal. If it still fails, add the folder containing sam.exe to the Windows user PATH and restart. See docs/V18_AWS_BEGINNER_ROADMAP.md.")
             self._log("SAM Build: sam.exe was not resolved; checked PATH, where.exe, PowerShell and common install folders. No build ran.")
             return
         self._log(f"SAM CLI resolved to: {sam_exe}")
         self._run([sam_exe, "build", "--template-file", str(ROOT / "template.yaml")], "AWS SAM build (local only)", extra_env=self._aws_environment())
 
+    def _build_forecast_tab(self):
+        """Build a GUI-first forecast workflow without requiring users to operate FastAPI."""
+        pane = self.forecast_tab
+        intro = ttk.LabelFrame(pane, text="RESEARCH FORECAST — NO LOCAL API SERVER REQUIRED", padding=12)
+        intro.pack(fill="x", pady=(0, 10))
+        ttk.Label(intro, text=("Create a next-available-trading-session estimate from the latest market data and the locally approved champion model. "
+            "This runs the project's forecast script in the background and shows its output here; it does not start a web server or deploy anything."),
+            wraplength=1000, justify="left").pack(anchor="w")
+        controls = ttk.Frame(intro); controls.pack(fill="x", pady=(10, 2))
+        ttk.Label(controls, text="Market history to refresh:").pack(side="left", padx=(0, 8))
+        self.forecast_period = tk.StringVar(value="2y")
+        ttk.Combobox(controls, textvariable=self.forecast_period, values=["6mo", "1y", "2y", "5y", "10y"], state="readonly", width=10).pack(side="left")
+        ttk.Button(controls, text="Generate Next-Session Forecast", style="Gold.TButton", command=self.run_forecast).pack(side="left", padx=10)
+        ttk.Button(controls, text="Open Forecast JSON", command=self.open_forecast_file).pack(side="left", padx=5)
+        ttk.Button(controls, text="Open Forecast Folder", command=lambda: os.startfile(ROOT / "artifacts")).pack(side="left", padx=5)
+        ttk.Label(pane, text="LATEST FORECAST OUTPUT", style="Muted.TLabel").pack(anchor="w", pady=(3, 5))
+        self.forecast_output = tk.Text(pane, height=20, bg="#07101d", fg="#c7d7eb", insertbackground="white", relief="flat", font=("Cascadia Mono", 10), wrap="word")
+        self.forecast_output.pack(fill="both", expand=True)
+        self.forecast_output.insert("1.0", "No forecast has been generated in this session.\n\nPrerequisite: models/champion_model.joblib and models/champion_manifest.json must exist. Train, review the chronological holdout against persistence, and approve a model only when justified.\n\nImportant: the forecast is a research estimate for the next available trading session, not necessarily tomorrow's calendar date. GC=F is a gold-futures proxy, not an official spot-price quote.")
+        self.forecast_output.configure(state="disabled")
+        self._load_forecast_output()
+
+    def _load_forecast_output(self):
+        """Display the latest saved forecast JSON when it exists."""
+        path = ROOT / "artifacts" / "latest_forecast.json"
+        if not path.exists():
+            return
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            text = json.dumps(data, indent=2, ensure_ascii=False)
+            self.forecast_output.configure(state="normal"); self.forecast_output.delete("1.0", "end"); self.forecast_output.insert("1.0", text); self.forecast_output.configure(state="disabled")
+        except Exception as exc:
+            self._log(f"Could not load saved forecast: {exc}")
+
+    def run_forecast(self):
+        """Run the forecast script as a managed subprocess and refresh its output afterwards."""
+        model = ROOT / "models" / "champion_model.joblib"
+        manifest = ROOT / "models" / "champion_manifest.json"
+        if not model.exists() or not manifest.exists():
+            messagebox.showwarning("Approved model required", "No approved champion model was found. Train a candidate, inspect the out-of-sample holdout and baseline comparisons, and approve only if the evidence supports it.")
+            return
+        self._run([PYTHON, "scripts/predict_next_session.py", "--period", self.forecast_period.get()], "Generate next-session forecast")
+
+    def open_forecast_file(self):
+        """Open the forecast JSON with the Windows default application."""
+        path = ROOT / "artifacts" / "latest_forecast.json"
+        if path.exists():
+            os.startfile(path)
+        else:
+            messagebox.showinfo("Forecast not available", "Generate a forecast first. The result will be written to artifacts/latest_forecast.json.")
+
+    def _build_aws_tab(self):
+        """Build a guided AWS control center with explicit, guarded cloud actions."""
+        pane = self.aws_tab
+        intro = ttk.LabelFrame(pane, text="AWS CONTROL CENTER — REVIEW BEFORE ANY CLOUD-COST ACTION", padding=12)
+        intro.pack(fill="x", pady=(0, 10))
+        ttk.Label(intro, text=("This tab runs AWS CLI, SAM and project scripts from the desktop app. It uses your existing Windows AWS CLI credentials/profile; "
+            "it does not create resources until you explicitly confirm a deployment or pipeline action. Build and validation are local checks."),
+            wraplength=1020, justify="left").pack(anchor="w")
+        modes = ttk.LabelFrame(pane, text="CHOOSE THE WORKFLOW DIRECTION", padding=10); modes.pack(fill="x", pady=(0, 10))
+        self.aws_mode = tk.StringVar(value="local_to_cloud")
+        ttk.Radiobutton(modes, text="A. Local data + local ML → AWS storage / deployment", variable=self.aws_mode, value="local_to_cloud", command=self._update_aws_mode_help).pack(anchor="w", pady=2)
+        ttk.Radiobutton(modes, text="B. AWS data + AWS processing / ML pipeline", variable=self.aws_mode, value="cloud_native", command=self._update_aws_mode_help).pack(anchor="w", pady=2)
+        self.aws_mode_help = ttk.Label(modes, text="Direction A: keep the current Windows data science workflow; upload selected prepared data/artifacts to S3 and deploy the scheduled collector only when ready.", wraplength=1020, justify="left")
+        self.aws_mode_help.pack(anchor="w", padx=(22, 0), pady=(4, 0))
+        config = ttk.LabelFrame(pane, text="AWS PROJECT SETTINGS", padding=10); config.pack(fill="x", pady=(0, 10))
+        self.aws_region_var = tk.StringVar(value=os.getenv("AWS_DEFAULT_REGION", os.getenv("AWS_REGION", "eu-central-1")))
+        self.aws_profile_var = tk.StringVar(value=os.getenv("AWS_PROFILE", "default"))
+        self.aws_bucket_var = tk.StringVar(value=os.getenv("S3_BUCKET", ""))
+        self.aws_role_var = tk.StringVar(value=os.getenv("SAGEMAKER_ROLE_ARN", ""))
+        self.aws_stack_var = tk.StringVar(value="gold-price-prediction")
+        fields = [("Region", self.aws_region_var, 18), ("AWS profile (optional)", self.aws_profile_var, 20), ("S3 bucket name (after deploy)", self.aws_bucket_var, 30), ("SageMaker execution role ARN", self.aws_role_var, 42), ("SAM stack name", self.aws_stack_var, 24)]
+        grid = tk.Frame(config, bg="#111c2f"); grid.pack(fill="x")
+        for i, (label, var, width) in enumerate(fields):
+            cell = tk.Frame(grid, bg="#111c2f"); cell.grid(row=i//3, column=i%3, sticky="ew", padx=5, pady=4)
+            ttk.Label(cell, text=label, style="Muted.TLabel").pack(anchor="w")
+            ttk.Entry(cell, textvariable=var, width=width).pack(anchor="w", fill="x", pady=(3, 0))
+        for i in range(3): grid.columnconfigure(i, weight=1)
+        ttk.Button(config, text="Save non-secret AWS settings to .env", command=self.save_aws_settings).pack(anchor="w", padx=5, pady=(5, 0))
+        actions = ttk.LabelFrame(pane, text="SAFE CHECKS / LOCAL BUILD", padding=10); actions.pack(fill="x", pady=(0, 8))
+        row = tk.Frame(actions, bg="#111c2f"); row.pack(fill="x")
+        for label, fn in [("Check AWS Identity", self.aws_check_identity), ("AWS Preflight", self.aws_preflight), ("SAM Validate", self.sam_validate), ("SAM Build (local)", self.sam_build), ("List S3 Buckets", self.aws_list_buckets), ("Open AWS Roadmap", self.open_aws_roadmap)]:
+            ttk.Button(row, text=label, command=fn).pack(side="left", padx=4, pady=4)
+        cloud = ttk.LabelFrame(pane, text="CLOUD ACTIONS — THESE CAN CREATE RESOURCES OR COST MONEY", padding=10); cloud.pack(fill="x", pady=(0, 8))
+        row2 = tk.Frame(cloud, bg="#111c2f"); row2.pack(fill="x")
+        ttk.Button(row2, text="Deploy SAM Stack…", style="Gold.TButton", command=self.aws_deploy).pack(side="left", padx=4, pady=4)
+        ttk.Button(row2, text="Prepare + Upload Market History", command=self.aws_prepare_upload).pack(side="left", padx=4, pady=4)
+        ttk.Button(row2, text="Start SageMaker Pipeline…", command=self.aws_start_sagemaker_pipeline).pack(side="left", padx=4, pady=4)
+        ttk.Button(row2, text="Open CloudFormation Outputs", command=self.aws_stack_outputs).pack(side="left", padx=4, pady=4)
+        ttk.Button(row2, text="Stop Current Task", command=self.stop_process).pack(side="left", padx=4, pady=4)
+        ttk.Label(pane, text="All command output is streamed to the existing Live Run Console on the Workflow tab. Use AWS Console to independently verify every created resource.", style="Muted.TLabel", wraplength=1020).pack(anchor="w", pady=(4, 0))
+
+    def _update_aws_mode_help(self):
+        """Explain the currently selected local-versus-cloud architecture in plain language."""
+        if self.aws_mode.get() == "local_to_cloud":
+            msg = "Direction A: data download, feature engineering, model comparison and evaluation remain on this PC. AWS is used for S3 storage and the scheduled Lambda collector; SageMaker can be an optional later deployment. Lower complexity and easier debugging."
+        else:
+            msg = "Direction B: market snapshots land in S3; SageMaker Processing prepares features, SageMaker Training fits a model, Processing evaluates against persistence, and the pipeline can register a candidate for manual review. This needs an execution role, a valid S3 bucket/raw CSV, SageMaker permissions, and billable managed jobs. News ingestion/feature integration is not yet fully cloud-native in this version."
+        self.aws_mode_help.configure(text=msg)
+
+    def save_aws_settings(self):
+        """Save only non-secret AWS configuration values to .env."""
+        try:
+            from dotenv import set_key
+            env_path = ROOT / ".env"
+            if not env_path.exists():
+                example = ROOT / ".env.example"
+                env_path.write_text(example.read_text(encoding="utf-8") if example.exists() else "", encoding="utf-8")
+            for key, value in [("AWS_DEFAULT_REGION", self.aws_region_var.get().strip()), ("AWS_REGION", self.aws_region_var.get().strip()), ("AWS_PROFILE", self.aws_profile_var.get().strip()), ("S3_BUCKET", self.aws_bucket_var.get().strip()), ("SAGEMAKER_ROLE_ARN", self.aws_role_var.get().strip())]:
+                if value:
+                    set_key(str(env_path), key, value)
+            self._log("Saved AWS region/profile/bucket/role settings to .env. No secret keys were requested or logged.")
+            messagebox.showinfo("Settings saved", "Non-secret AWS settings saved. Keep .env private and out of version control.")
+        except Exception as exc:
+            messagebox.showerror("Could not save settings", str(exc))
+
+    def open_aws_roadmap(self):
+        """Open the plain-language AWS roadmap."""
+        path = ROOT / "docs" / "V18_AWS_BEGINNER_ROADMAP.md"
+        if path.exists(): webbrowser.open(path.as_uri())
+
+    def _aws_cli(self):
+        """Resolve the AWS CLI executable for this Windows GUI process."""
+        exe = self._resolve_cli("aws")
+        if not exe:
+            messagebox.showerror("AWS CLI not found", "Install AWS CLI v2, reopen VS Code/the app, and verify `aws --version` in a new terminal.")
+        return exe
+
+    def _aws_cli_args(self, *args):
+        """Add region and optional profile to an AWS CLI argument list."""
+        base = [self._aws_cli()]
+        if not base[0]: return None
+        profile = self.aws_profile_var.get().strip()
+        region = self.aws_region_var.get().strip()
+        base += list(args)
+        if profile and profile.lower() != "default": base += ["--profile", profile]
+        if region and "--region" not in base: base += ["--region", region]
+        return base
+
+    def aws_list_buckets(self):
+        """List S3 buckets for the selected account and region context."""
+        args = self._aws_cli_args("s3", "ls")
+        if args: self._run(args, "List S3 buckets", extra_env=self._aws_environment())
+
+    def aws_deploy(self):
+        """Deploy the SAM stack only after explicit confirmation and existing guided config."""
+        sam = self._resolve_cli("sam")
+        if not sam:
+            messagebox.showerror("SAM CLI not found", "Install AWS SAM CLI and verify `sam --version` in a new terminal."); return
+        config_file = ROOT / "samconfig.toml"
+        stack = self.aws_stack_var.get().strip() or "gold-price-prediction"
+        first_deploy = not config_file.exists()
+        if first_deploy:
+            detail = (f"First deployment of stack '{stack}' to region '{self.aws_region_var.get()}'.\n\n"
+                      "SAM will use --resolve-s3 to create/use its managed deployment bucket and --capabilities CAPABILITY_IAM. "
+                      "This creates a private project S3 bucket, an IAM role, a Lambda collector and a weekday EventBridge schedule. "
+                      "The command is non-interactive and will confirm the CloudFormation change set automatically after this confirmation. "
+                      "AWS charges may apply. Check AWS identity and run SAM Validate/Build first.")
+        else:
+            detail = (f"Deploy/update SAM stack '{stack}' in region '{self.aws_region_var.get()}'? This creates/updates a private S3 bucket, IAM role, Lambda function, and scheduled EventBridge rule. AWS charges may apply. Confirm your AWS identity first.")
+        if not messagebox.askyesno("Confirm AWS deployment", detail):
+            return
+        args = [sam, "deploy", "--template-file", str(ROOT / "template.yaml"), "--stack-name", stack,
+                "--no-confirm-changeset", "--no-fail-on-empty-changeset", "--region", self.aws_region_var.get().strip()]
+        if first_deploy:
+            args += ["--resolve-s3", "--capabilities", "CAPABILITY_IAM"]
+        profile = self.aws_profile_var.get().strip()
+        if profile and profile.lower() != "default": args += ["--profile", profile]
+        self._run(args, "Deploy SAM cloud stack", extra_env=self._aws_environment())
+
+    def aws_stack_outputs(self):
+        """Read CloudFormation outputs for the selected stack."""
+        stack = self.aws_stack_var.get().strip() or "gold-price-prediction"
+        args = self._aws_cli_args("cloudformation", "describe-stacks", "--stack-name", stack, "--query", "Stacks[0].Outputs", "--output", "table")
+        if args: self._run(args, "Read CloudFormation stack outputs", extra_env=self._aws_environment())
+
+    def aws_prepare_upload(self):
+        """Prepare a normalized historical market file and upload it to the configured private S3 bucket."""
+        bucket = self.aws_bucket_var.get().strip()
+        if not bucket:
+            messagebox.showwarning("S3 bucket required", "Enter the bucket name shown in the SAM/CloudFormation output first, then save settings."); return
+        if not (ROOT / "data/raw/market_daily.csv").exists():
+            messagebox.showwarning("Market data missing", "Run Prepare Market + Features on the Workflow tab first."); return
+        if not messagebox.askyesno("Upload market history", f"Upload prepared market history to s3://{bucket}/gold-price-prediction/raw/market/bootstrap_market_history.csv? Confirm the bucket belongs to your intended account."):
+            return
+        self._run([PYTHON, "scripts/prepare_sagemaker_data.py", "--input", "data/raw/market_daily.csv", "--output-dir", "data/processed/sagemaker"], "Prepare market data for cloud pipeline")
+        # The chained upload runs only after preparation succeeds in _poll_events.
+        self._pending_s3_upload = bucket
+
+    def aws_start_sagemaker_pipeline(self):
+        """Start a managed SageMaker pipeline only with explicit cost/permission confirmation."""
+        if self.aws_mode.get() != "cloud_native":
+            if not messagebox.askyesno("Cloud-native mode not selected", "The pipeline runs Processing and Training jobs in AWS and can incur charges. Switch to Direction B and continue?"):
+                return
+            self.aws_mode.set("cloud_native"); self._update_aws_mode_help()
+        bucket = self.aws_bucket_var.get().strip()
+        role = self.aws_role_var.get().strip()
+        if not bucket or not role:
+            messagebox.showwarning("Cloud settings incomplete", "Enter and save both the S3 bucket name and SageMaker execution role ARN. The role must trust SageMaker and have least-privilege access to this project's S3 prefix."); return
+        if not messagebox.askyesno("Start SageMaker pipeline", "This registers/updates a SageMaker Pipeline and starts a run with managed Processing and Training jobs. It may incur charges. Before continuing, verify the S3 bootstrap CSV exists at gold-price-prediction/raw/market/bootstrap_market_history.csv, the SageMaker execution role is correct, and the AWS identity/region are correct."):
+            return
+        self._run([PYTHON, "scripts/start_pipeline.py"], "Start SageMaker cloud pipeline", extra_env=self._aws_environment())
+
     def _build_about(self):
         """Explain source semantics, sentiment method, target, and caveats in the GUI."""
         pane = self.about_tab  # V5 fix: bind the method-card parent to the About tab.
-        text = ("V16 METHOD CARD\n\n"
+        text = ("V18 METHOD CARD\n\n"
           "MARKET DATA\nGC=F is Yahoo Finance's symbol for a continuous gold-futures proxy (not spot gold and not a guaranteed official COMEX settlement series). The GUI uses it as a convenient educational market proxy, plus configured context tickers via yfinance. The shared analysis-window control requests the same lookback for market and news ingestion. Daily market bars exist only on trading sessions, so weekends and exchange holidays are expected calendar gaps. Features include the current observed gold close (available at forecast time), lagged returns, rolling volatility/momentum and related-market values.\n\n"
           "NEWS SOURCE OPTIONS\n• Google News RSS is the default key-free headline source; NewsAPI and Alpha Vantage keys can be entered in the GUI and saved to .env. Legacy GDELT/Yahoo remain available. The same selected lookback is passed to both market ingestion and the requested news query window. However, this aligns the requested time span, not the actual article archive: RSS feeds and free APIs may only expose recent headlines, may ignore long historical ranges, and do not guarantee completeness. Provider failures and requested query windows are recorded in news_ingestion_log.csv. One-day windows are useful for ingestion/plot/data-quality checks, but cannot support meaningful supervised ML evaluation.\n• Start Live News Monitor polls RSS every five minutes and records FinBERT/lexicon sentiment snapshots. It is a polling monitor, not a push stream or a validated intraday price prediction.\n\n"
           "SENTIMENT\nFetch News must happen before Score News. For the default lexicon, training can calculate the lexicon features itself; Score News creates a visible scored CSV. For FinBERT, score the latest fetched archive first and then run Train & Evaluate. FinBERT is optional and may require downloading model weights.\nDeterministic English keyword lexicon. Article title + summary; lowercase tokenization; unique tokens; score=(positive matches−negative matches)/max(1,total matches). The positive and negative vocabularies live in src/features/news_features.py. No negation, contextual model, FinBERT or LLM by default.\n\n"
@@ -402,7 +612,7 @@ class GoldApp(tk.Tk):
                 if args and str(args[0]).lower() in ("sam", "sam.exe"):
                     detail = ("AWS SAM CLI executable was not found. Install AWS SAM CLI for Windows, restart VS Code, "
                               "then confirm `sam --version` in a new terminal. Identity checks can work without SAM; "
-                              "template validation/build cannot. See docs/AWS_IRONHACK_RUNBOOK.md.")
+                              "template validation/build cannot. See docs/V18_AWS_BEGINNER_ROADMAP.md.")
                 elif args and str(args[0]).lower() in ("aws", "aws.exe"):
                     detail = "AWS CLI executable was not found. Install AWS CLI v2 for Windows and restart VS Code."
                 else:
@@ -419,6 +629,15 @@ class GoldApp(tk.Tk):
                 if item[0]=="line": self._log(item[1])
                 elif item[0]=="done":
                     _, label, code=item; self.status.set(("SUCCESS" if code==0 else "CHECK LOG")+f"  •  {label}  •  exit={code}"); self._log(f"Finished: {label}; exit code={code}"); self._refresh_metrics()
+                    if label == "Generate next-session forecast" and code == 0: self._load_forecast_output()
+                    if label == "Prepare market data for cloud pipeline":
+                        bucket = getattr(self, "_pending_s3_upload", None)
+                        if code == 0 and bucket:
+                            self._pending_s3_upload = None
+                            aws_args = self._aws_cli_args("s3", "cp", str(ROOT / "data/processed/sagemaker/bootstrap_market_history.csv"), f"s3://{bucket}/gold-price-prediction/raw/market/bootstrap_market_history.csv")
+                            if aws_args: self._run(aws_args, "Upload bootstrap market history to S3", extra_env=self._aws_environment())
+                        else:
+                            self._pending_s3_upload = None
                 elif item[0]=="error": self.status.set("ERROR  •  see console"); self._log(f"ERROR {item[1]}: {item[2]}")
         except queue.Empty: pass
         self.after(100, self._poll_events)

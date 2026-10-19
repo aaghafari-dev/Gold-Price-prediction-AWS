@@ -1,0 +1,33 @@
+digraph GoldPricePrediction {
+  graph [rankdir=TB, bgcolor="#0b1220", pad="0.3", nodesep="0.35", ranksep="0.48", fontname="Arial", label="Gold Price Prediction", labelloc=t, fontsize=22, fontcolor="#f5c451"];
+  node [shape=box, style="rounded,filled", fontname="Arial", fontsize=10, color="#45617e", fontcolor="#edf4ff", fillcolor="#17243a", margin="0.16,0.11"];
+  edge [color="#8aa6c1", fontname="Arial", fontsize=9, fontcolor="#dbeafe", arrowsize=0.8];
+  subgraph cluster_local {
+    label="DIRECTION A — LOCAL-FIRST RESEARCH"; color="#47758d"; fontcolor="#8de6d1"; style="rounded";
+    gui [label="Tkinter GUI\nWorkflow / Results / Forecast Center / AWS Control Center", fillcolor="#143a36", color="#3a9d87"];
+    market [label="Yahoo Finance market bars\nGC=F gold-futures proxy"];
+    news [label="Google News RSS + optional providers\nNews archive may be incomplete"];
+    audit [label="Data quality / schema / timestamps / deduplication"];
+    features [label="Point-in-time market features\nOptional sentiment features"];
+    eval [label="Chronological holdout + walk-forward CV\nCompare against persistence and seasonal baseline"];
+    gate [label="Human review / candidate gate"];
+    forecast [label="Forecast Center\nLocal next-session estimate"];
+    gui -> market; gui -> news; market -> audit; news -> audit; audit -> features; features -> eval; eval -> gate; gate -> forecast;
+  }
+  subgraph cluster_cloud {
+    label="DIRECTION B — CLOUD MARKET ML"; color="#876c3c"; fontcolor="#f5c451"; style="rounded";
+    sam [label="SAM / CloudFormation\nCreate/update stack"];
+    iam [label="IAM Lambda execution role"];
+    schedule [label="EventBridge weekday schedule"];
+    lambda [label="Python 3.11 Lambda\nMarket collector"];
+    s3 [label="Private encrypted/versioned S3 bucket", shape=cylinder, fillcolor="#143a36", color="#3a9d87"];
+    logs [label="CloudWatch Logs"];
+    upload [label="GUI prepares + uploads\nnormalized bootstrap CSV"];
+    processing [label="SageMaker Processing\nfeature prep / split"];
+    training [label="SageMaker Training"];
+    evaluation [label="SageMaker Evaluation\npersistence quality gate"];
+    registry [label="Model Registry\nPending manual approval"];
+    sam -> iam -> lambda; sam -> s3; sam -> schedule -> lambda; lambda -> s3; lambda -> logs; upload -> s3 -> processing -> training -> evaluation -> registry;
+  }
+  gate -> upload [style=dashed, label="optional reviewed data/artifacts"];
+}

@@ -86,7 +86,7 @@ def _fetch_yahoo_rss(symbol: str, timeout: int = 20) -> list[dict]:
     url = "https://feeds.finance.yahoo.com/rss/2.0/headline?" + urlencode({
         "s": symbol, "region": "US", "lang": "en-US"
     })
-    response = requests.get(url, headers={"User-Agent": "Mozilla/5.0 (compatible; timeout=timeout)"}, timeout=timeout)
+    response = requests.get(url, headers={"User-Agent": "Mozilla/5.0 (compatible; projectGoldStudentProject/1.0)"}, timeout=timeout)
     response.raise_for_status()
     try:
         root = ET.fromstring(response.content)
@@ -161,7 +161,7 @@ def fetch_gdelt_news(query: str, timespan: str = "7d", max_records: int = 100,
     query_variants = [(query, max(1, min(int(max_records), 250)))]
     if query.strip().lower() not in {"gold", '"gold"'}:
         query_variants.append(("gold", min(50, max(1, int(max_records)))))
-    headers = {"User-Agent": "Mozilla/5.0 (compatible; educational use)"}
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; projectGoldStudentProject/1.0; educational use)"}
     errors = []
     for variant_query, variant_count in query_variants:
         params = {"query": variant_query, "mode": "ArtList", "format": "json",

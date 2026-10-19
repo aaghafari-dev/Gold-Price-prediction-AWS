@@ -1,190 +1,235 @@
-# Gold Price Prediction Project
+# Gold Price Prediction Workbench
 
-## Highlights
+A desktop research application for collecting gold-market data and financial news, engineering time-aware features, evaluating machine-learning models, and exploring an optional AWS-based workflow. The project combines a Tkinter interface with reproducible Python pipelines, model-governance checks, diagnostics, and cloud deployment utilities.
 
-* Google News RSS is the default key-free headline source; optional NewsAPI and Alpha Vantage connectors can be enabled with your own API keys. Legacy GDELT/Yahoo adapters remain available.
-* Provider failures are isolated and logged. Empty responses do not silently overwrite an existing archive; if all selected providers fail, the command exits with an error.
-* Optional pretrained ProsusAI/finbert sentiment produces positive/negative/neutral probabilities, signed score, confidence and magnitude.
-* A five-minute live headline polling monitor writes timestamped sentiment snapshots and rolling-window features.
-* GUI exposes optional NewsAPI and Alpha Vantage key fields (masked input) and an explicit save-to-.env action; selected providers with missing keys are blocked before fetch. The ML experiment has a **Use news features** checkbox (market-only remains the default), a nested tuning/feature-selection checkbox, and CPU / GPU-for-XGBoost / auto CPU fallback options. Unverified recent news may be analyzed but cannot be promoted.
-* One shared analysis-window control (1d through 30y) is passed to both market and news ingestion, so the requested time spans match. This does not guarantee that a news provider can return historical articles for the entire span. One-day windows are for ingestion/plot/data-quality checks; supervised model evaluation needs substantially more observations after rolling-feature warm-up.
-* GUI setting **Final chronological test fraction** reserves the newest 10–40% of observations for holdout evaluation (default 20%). Development-period model selection uses chronological walk-forward folds.
-* Architecture diagrams, a detailed manual, AWS runbook, news pipeline guide and automated tests are included.
+> **Research disclaimer:** This project is intended for education and quantitative research. It is not investment advice and does not establish a profitable trading strategy. Model outputs should not be used as the sole basis for financial decisions.
+
+## Contents
+
+- [Overview](#overview)
+- [Capabilities](#capabilities)
+- [Architecture](#architecture)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Launch the application](#launch-the-application)
+- [Recommended workflow](#recommended-workflow)
+- [Execution modes](#execution-modes)
+- [Command-line workflows](#command-line-workflows)
+- [Configuration and credentials](#configuration-and-credentials)
+- [Testing](#testing)
+- [Data and model limitations](#data-and-model-limitations)
+- [Repository map](#repository-map)
+- [Documentation](#documentation)
+
+## Overview
+
+The application supports two complementary execution modes:
+
+1. **Local-first research:** collect and inspect data, engineer features, train and evaluate models on a Windows workstation, and optionally store selected data or artifacts in AWS.
+2. **Cloud-based market ML:** use AWS storage and scheduled collection, then run configured data preparation, model training, evaluation, and model-registration steps with Amazon SageMaker.
+
+The local-first workflow is the recommended starting point. It is easier to debug and makes it possible to assess data quality and model performance before incurring cloud-compute costs.
+
+## Capabilities
+
+### Desktop application
+
+- Tkinter/ttk graphical interface with a workflow-oriented research experience.
+- Forecast Center for generating a next-session research estimate from an approved local model.
+- AWS Control Center for identity checks, SAM validation/build, resource inspection, data upload, and SageMaker pipeline initiation.
+- Live command output and status messages to help diagnose failures.
+
+### Market and news data
+
+- Gold futures proxy and configurable related-market symbols, collected through `yfinance`.
+- News ingestion through public Google News RSS and optional API-based providers, subject to provider availability and credentials.
+- News ingestion logs, archive auditing, timestamp normalization, and time-alignment checks.
+- Optional FinBERT sentiment scoring and a live headline/sentiment monitor.
+- News features can be evaluated alongside market-only features; market-only remains a useful baseline.
+
+### Machine learning and evaluation
+
+- Market-feature engineering using historical price and related-market data.
+- Candidate models including XGBoost, Random Forest, Extra Trees, and HistGradientBoosting.
+- Chronological holdout evaluation and walk-forward validation to reduce time-series leakage.
+- Optional hyperparameter tuning and feature selection within the training workflow.
+- Baseline comparisons, feature manifests, evaluation reports, and explicit candidate-approval controls.
+- Forecast generation from an approved champion model, with output written to `artifacts/latest_forecast.json`.
+
+### AWS workflow
+
+- AWS SAM template for an encrypted, private S3 bucket, a Lambda market collector, its execution role, and an EventBridge schedule.
+- Scripts for uploading historical data, starting SageMaker pipeline executions, registering models, and optional model deployment/invocation tasks.
+- Documentation distinguishes resources defined by the SAM template from additional SageMaker resources that must be configured and executed separately.
+
+## Architecture
 
 
+For detailed diagrams, see the ![Architecture Diagram](./docs/Architecture.png). 
 
-## Install and launch (Windows 11 / VS Code / Python 3.11)
+## Requirements
 
-powershell
+- Windows 10/11 or another supported desktop environment with Python installed.
+- Python 3.11 recommended for the documented Windows setup.
+- VS Code or another terminal/editor.
+- Internet access for market/news ingestion and package installation.
+- AWS CLI and AWS SAM CLI only if using the AWS workflow.
+- AWS credentials and appropriate IAM permissions only for cloud operations.
+
+Optional components:
+
+- FinBERT sentiment analysis requires the additional packages in `requirements-nlp.txt` and may download model weights on first use.
+- SageMaker workflow execution requires the packages in `sagemaker/requirements.txt`, an accessible S3 input location, and a correctly configured SageMaker execution role.
+
+## Installation
+
+Open a PowerShell terminal in the repository root.
+
+```powershell
 py -3.11 -m venv .venv
-.\\.venv\\Scripts\\python.exe -m pip install --upgrade pip
-.\\.venv\\Scripts\\python.exe -m pip install -r requirements.txt
-.\\.venv\\Scripts\\python.exe gui\\app.py
-.\\.venv\\Scripts\\python.exe -m pip install -r requirements-nlp.txt
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
 
+The commands above create a project-local Python environment and install the main dependencies. If `py -3.11` is not available, install Python 3.11 and ensure the Python launcher can find it.
 
+### Optional dependencies
 
-The first FinBERT run may download model weights and require additional disk space and memory. API keys are saved to .env; do not commit it. For AWS, prefer an AWS CLI named profile or SSO rather than long-lived AWS keys in .env.
+Install the NLP dependencies for FinBERT sentiment scoring:
 
-## 
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-nlp.txt
+```
 
-## Recommended GUI workflow
+Install the SageMaker SDK dependencies when using the cloud ML workflow:
 
-1. Select **Google News RSS** (default) and optionally enable API providers whose keys you have configured.
-2. Click **Fetch News** and inspect the provider-specific status/errors in the live console.
-3. Verify data/raw/news.csv and data/raw/news\_ingestion\_log.csv; run **Audit News Archive**.
-4. If using FinBERT, select FinBERT and click **Score News**. The five-minute monitor is optional and can be stopped using **Stop Current Task**.
-5. Choose whether to include news in the model experiment. Start with market-only, then compare market-only versus market-plus-news on the same chronological protocol.
-6. Click **Prepare Market + Features**.
-7. Set the final chronological test fraction (default 0.20) and click **Train \& Evaluate**.
-8. Review artifacts/model\_comparison.csv and artifacts/training\_result.json; only approve a candidate after reviewing the metrics and data-quality warnings.
-9. Start the local FastAPI only after a valid candidate has been approved.
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r sagemaker/requirements.txt
+```
 
-## 
+AWS CLI and SAM CLI are separate tools; install and configure them using their official documentation before using AWS Control Center.
 
-## CLI examples
+## Launch the application
 
-Fetch public RSS headlines without API keys:
+From the repository root:
 
-powershell
-.\\.venv\\Scripts\\python.exe scripts\\fetch\_news.py --source google\_news\_rss --query "gold OR bullion OR Federal Reserve OR inflation" --count 100
+```powershell
+.\.venv\Scripts\python.exe gui\app.py
+```
 
+The main research and forecast workflows run directly from the desktop application. The optional FastAPI service in `src/serving/` is a separate interface and is not required to open the GUI or use the Forecast Center.
 
+## Recommended workflow
 
-Fetch from multiple sources independently (API keys are required for the two optional API providers):
+1. **Inspect configuration.** Review the symbol, news-provider, lookback-window, and model settings.
+2. **Collect market data.** Use the GUI workflow or the relevant command-line script.
+3. **Collect news.** Select an available provider, configure optional credentials if required, and inspect provider status in the console.
+4. **Audit the data.** Review `data/raw/news.csv`, `data/raw/news_ingestion_log.csv`, and the generated data-quality reports. A successful command is not proof that a provider returned useful data.
+5. **Optionally score news.** Install the NLP dependencies and run sentiment scoring when needed.
+6. **Prepare features.** Run feature preparation and confirm that market and news timestamps are aligned without using future information.
+7. **Train and evaluate.** Use chronological holdout data and walk-forward validation. Compare each candidate with simple baselines.
+8. **Review before approval.** Inspect metrics, warnings, and data coverage before promoting a candidate. Human approval is a governance step, not proof that a model is predictive.
+9. **Generate a forecast.** Open Forecast Center after an approved champion model and its manifest are available.
+10. **Use AWS optionally.** First verify the AWS identity and region, then validate/build the SAM template, deploy only after reviewing the proposed resources, and verify execution in CloudFormation, S3, Lambda, and CloudWatch. Configure SageMaker separately before starting its pipeline.
 
-powershell
-.\\.venv\\Scripts\\python.exe scripts\\fetch\_news.py --source google\_news\_rss,newsapi,alphavantage --query "gold OR Federal Reserve"
+## Execution modes
 
+### Local-first research
 
+Data ingestion, feature engineering, model selection, and evaluation run on the local computer. Selected data or artifacts can be uploaded to S3. This mode is suitable for development, diagnostics, and repeatable experiments without requiring cloud compute for each run.
 
-Score with FinBERT:
+### Cloud-based market ML
 
-powershell
-.\\.venv\\Scripts\\python.exe scripts\\compare\_sentiment.py --news data/raw/news.csv --out data/processed/news\_finbert\_scored.csv --finbert
+The SAM template provisions the foundational market-data collection resources. The separate SageMaker workflow supports cloud-side preprocessing, training, evaluation, and model registration when its inputs, role, and AWS configuration are supplied.
 
+**Scope boundary:** The current cloud pipeline is market-data focused. End-to-end historical news collection, point-in-time news archives, cloud sentiment scoring, and a continuously hosted prediction endpoint are not automatically provisioned by the SAM template. Review `docs/AWS_project_RUNBOOK.md` and the AWS beginner roadmap before deployment.
 
+## Command-line workflows
 
-Train with a 25% chronological holdout:
+Run commands from the repository root using the project's Python environment.
 
-powershell
-.\\.venv\\Scripts\\python.exe scripts\\train\_local.py --test-fraction 0.25
+### Fetch public news headlines
 
+```powershell
+.\.venv\Scripts\python.exe scripts\fetch_news.py --source google_news_rss --query "gold OR bullion OR Federal Reserve OR inflation" --count 100
+```
 
+Provider availability and the historical coverage returned depend on the source. Recent headlines do not create a valid historical news archive for earlier market dates.
 
-Run automated tests:
+### Audit the news archive
 
-powershell
-$env:PYTHONPATH = '.'
-.\\.venv\\Scripts\\python.exe -m pytest -q
+```powershell
+.\.venv\Scripts\python.exe scripts\audit_news_archive.py
+```
 
+### Generate a next-session forecast
 
+```powershell
+.\.venv\Scripts\python.exe scripts\predict_next_session.py --period 2y
+```
 
-## Data and evaluation limitations
+This requires a compatible approved model and champion manifest. The forecast refers to the next available trading session, which may not be the next calendar day. The command writes `artifacts/latest_forecast.json` when successful.
 
-* GC=F is Yahoo Finance's continuous gold-futures proxy, not spot gold or a guaranteed official settlement feed.
-* Public headline feeds can be rate-limited, incomplete, delayed, or changed by providers. news\\\_ingestion\\\_log.csv is the diagnostic source of truth for fetch attempts.
-* Live-feed data cannot be treated as a historical point-in-time archive. Recent headlines joined to many years of prices do not create a valid historical news backtest.
-* FinBERT sentiment is an input feature, not a guarantee of directional relevance to gold. Evaluate market-only and market-plus-news models on identical chronological splits.
-* AWS deployment is optional, not performed automatically, and may incur charges. Follow docs/AWS\_IRONHACK\_RUNBOOK.md and delete endpoints when finished.
+### Train and evaluate locally
 
-## 
+```powershell
+.\.venv\Scripts\python.exe scripts\train_local.py --test-fraction 0.20
+```
 
-## Project files
+Use the GUI for the complete workflow when you prefer guided controls and visible run output. Review the script's `--help` output for any additional supported options.
 
-See the  Project Structure.md file for a complete description of the project structure.
+### Validate and build the AWS SAM template
 
-This is an educational research project, not financial advice or evidence of a profitable trading strategy.
+```powershell
+sam validate --lint --template-file template.yaml
+sam build --template-file template.yaml
+```
 
+A successful build prepares deployment artifacts locally; it does not create AWS resources. Deployment is a separate, billable action.
 
+### Run the test suite
 
-# GUI reference and end-to-end operating guide
+'''powershell
+$env:PYTHONPATH = "."
+.\.venv\Scripts\python.exe -m pytest -q
+'''
 
-This section is intentionally written so that a teammate who did not build the app can understand each visible control. The desktop app is a **local research workbench**; pressing a local pipeline button does not automatically deploy anything to AWS.
+## Configuration and credentials
 
-## 
+- Copy `.env.example` to `.env` only when local environment settings or optional API credentials are needed.
+- Never commit `.env`, API keys, access keys, tokens, or private data.
+- `.env.example` is a template only; it should not contain real secrets.
+- For AWS, prefer an AWS CLI named profile or AWS IAM Identity Center/SSO over long-lived access keys.
+- Check `aws sts get-caller-identity` and the selected region before deploying resources.
+- Follow least-privilege IAM practices. Do not grant broad permissions merely to make a failing command succeed.
+- Review estimated and actual AWS charges. Stop or delete resources when they are no longer needed.
 
-## A. Data Settings controls
+## Testing
 
-* **News search query** — terms sent to the selected news provider(s). Provider query syntax and coverage differ; a broad query can retrieve irrelevant stories, while a narrow query can miss important stories.
-* **Shared analysis window — news + market** — the requested lookback passed to both market and news ingestion (1d through 30y). This aligns requested windows, not actual coverage: a free RSS provider may return only recent headlines even when 5y is selected. Use 1d–90d mainly for ingestion, plotting, and data-quality checks. Use 6mo or longer for ML; 1y–5y is a sensible starting range.
-* **Minimum logged news-window overlap (0–1)** — minimum fraction of supervised market dates that fall within at least one *logged query window*. 0.80 means 80% of the training dates overlap a logged query interval. It does **not** mean that 80% of relevant articles were captured or that the archive is point-in-time complete. Keep news disabled for the first market-only baseline experiment.
-* **Final chronological test fraction (0.10–0.40)** — fraction of the newest supervised rows reserved for a final holdout. `0.20` means the newest 20% is held back. It should be evaluated once after model selection, not repeatedly used to tune the model.
-* **Google News RSS** — public RSS-based headline retrieval; no API key, but historical coverage and completeness are not guaranteed.
-* **NewsAPI (API key)** — use only if you have a valid key and have checked the provider's plan/limits. Missing keys should be fixed before selecting this provider.
-* **Alpha Vantage (API key)** — optional provider that requires a valid key and is subject to provider-specific limits.
-* **Legacy GDELT / Legacy Yahoo** — compatibility adapters. They may return empty results, rate-limit, or change their response formats; review the Live Run Console.
-* **NewsAPI key / Alpha Vantage key** — masked input fields. **Save API keys to .env** stores the entered values locally. Keep `.env` private and never commit or send it to colleagues.
-* **Sentiment file: lexicon / FinBERT** — choose the lightweight keyword/lexicon sentiment method or the optional pretrained FinBERT model. FinBERT may need requirements-nlp.txt, a first-run model download, extra disk space and memory. Sentiment is a feature, not proof of price impact.
-* **Score News** — creates a scored article file for the selected sentiment method. It does not train the gold model.
-* **Use news features in ML experiment** — adds available lagged news/sentiment features to the model comparison. First run market-only; then compare market-only with market-plus-news using the same dates and split.
-* **Exploratory unverified news (no promotion)** — permits a clearly exploratory market-plus-recent-news run when a verified historical archive is unavailable. Such a run is not a valid historical news backtest and must not be promoted as if its historical coverage were proven.
-* **Nested time-series tuning + feature selection (slower)** — performs parameter search/feature selection inside chronological training folds. It is slower but helps keep feature selection inside training data. Turn it off for a smoke test, then enable it for the final documented experiment.
-* **3-seed sensitivity check (slower)** — repeats fits using three fixed random seeds to see whether results depend on estimator randomness. It does not create three independent datasets, improve the data, or replace walk-forward validation / the final holdout.
-* **Compute: CPU (recommended)** — run supported estimators on CPU; safest option for reproducibility.
-* **GPU + CPU (XGBoost GPU only)** — requests GPU for XGBoost only when the installed XGBoost build and hardware support it. Other estimators still run on CPU. If the console reports no compatible GPU, choose CPU.
-* **Auto (CPU fallback)** — allow the configured automatic mode with CPU fallback. Inspect the console to see what was actually used.
+The `tests/` directory covers feature engineering, news ingestion, time alignment, API request handling, and SageMaker data preparation. Run the tests after changing ingestion, feature generation, evaluation, or serving logic.
 
-## 
+The project also includes GitHub Actions CI configuration under `.github/workflows/`.
 
-## B. Pipeline buttons
+## Data and model limitations
 
-* **Fetch News** — queries selected provider(s), saves returned records and a provider/query-window log. A successful command can still return zero articles; inspect the row count and provider messages.
-* **Prepare Market + Features** — fetches/refreshes market history for the shared window, validates dates/prices, creates market and lagged news features, constructs the next-session target, and writes the processed training table plus artifacts/data\\\_quality\\\_report.json. A short period can legitimately yield zero supervised rows after rolling-feature warm-up and target construction. Exit code 0 from preparation means the preparation command completed; it does not mean that enough rows exist for ML.
-* **Train \& Evaluate** — runs chronological walk-forward validation, optional nested tuning, baseline comparisons, and a final chronological holdout. The GUI now warns before attempting training with very short windows. For an ML experiment, choose 6mo or longer, prepare data, inspect the audit, then train.
-* **Approve Candidate** — asks for human confirmation and invokes the local candidate promotion process. Review artifacts/model\\\_comparison.csv and models/candidate\\\_manifest.json first. Approval is not the same as SageMaker Model Registry registration.
-* **Start Local API** — starts Uvicorn/FastAPI bound to `127.0.0.1:8000`. It serves only on the local machine, not the public internet. Keep the console open while using the API.
-* **Open API Docs** — opens Swagger UI at http://127.0.0.1:8000/docs. Start the API first. This page lets you inspect endpoints and send manual test requests; it does not train a model or deploy to AWS.
-* **Refresh Results** — reloads the saved run summary and comparison table from artifacts.
-* **Audit News Archive** — checks the archive and logged query windows for coverage/quality problems. It cannot prove that a news provider returned every relevant historical article.
-* **Start Live News Monitor** — polls a selected provider periodically and writes near-live headline/sentiment snapshots. It is not a validated intraday gold forecasting pipeline.
-* **Run Tests** — runs the local automated test suite using the Python interpreter that launched the GUI.
-* **Plot Market Data** — opens a local market-history plot; hover near a plotted point to see its date and price.
-* **AWS: Check Identity** — runs AWS STS caller-identity lookup. It identifies the configured account/role and checks whether the credentials are accepted; it does not create resources.
-* **AWS: Preflight** — runs preliminary PowerShell checks and displays results in the console. A passing preflight does not mean the SAM template is valid or deployed.
-* **SAM Validate** — runs sam validate --lint --template-file template.yaml; local template/lint check only, no deployment.
-* **SAM Build** — runs sam build --template-file template.yaml to prepare local build artifacts, commonly in .aws-sam/build; it does not deploy resources.
-* **AWS Runbook** — See part E
-* **Open Project Folder** — opens the project root in Windows Explorer.
-* **Stop Current Task** — requests termination of the current subprocess. Check the console to determine whether it stopped cleanly and whether partial files were written.
+- The default `GC=F` symbol is a Yahoo Finance continuous gold-futures proxy. It is not an official spot-gold quote or a guaranteed official settlement feed.
+- Public news providers can rate-limit requests, change formats, omit older stories, or return no usable rows. Check ingestion logs and data-quality reports.
+- News features are only valid for a backtest when the article timestamps and feature-availability times are aligned correctly with each market observation.
+- Sentiment scores are signals to evaluate, not proof of economic relevance or predictive power.
+- Chronological validation and baseline comparisons are essential. A model should not be described as successful unless its performance supports that claim on appropriate held-out data.
+- The live news monitor is a headline/sentiment monitor, not a validated intraday gold-price forecasting system.
+- Cloud deployment, SageMaker execution, and endpoint hosting require separate configuration and may incur charges.
 
-## 
+## Repository map
 
-## C. Model Results tab
+See [`Project Structure.md`](Project%20Structure.md) for a directory-by-directory guide.
 
-* **Saved run / Load selected run** — select and load a prior recorded experiment, where available, rather than assuming the table always represents the most recent run.
-* **Run summary** — shows run ID, row counts, selection status/reason, news experiment status, query-window overlap, and latest market date.
-* **Model / Features** — estimator and whether it used market-only or market-plus-news features.
-* **RMSE / MAE** — price-error metrics; lower is better. Compare only results evaluated on the same dates and target definition.
-* **RMSE CI low/high** — lower/upper limits of the reported uncertainty interval. It is not a guarantee of future performance.
-* **Holdout RMSE / MAE** — errors on the final newest chronological block. This is the closest available estimate of out-of-sample performance in this experiment; it is not a guarantee of live performance.
-* **Persistence RMSE** — error from predicting the next close as the current close.
-* **Seasonal RMSE** — error from the configured seasonal-naive baseline (the prior five-session reference in this project).
-* **vs strongest %** — percentage improvement against the strongest baseline (the lower-error benchmark). Positive is better; negative means worse than that benchmark.
-* **Directional Acc.** — fraction of observations where the predicted price change has the same sign as the actual price change. It does not measure profitability after transaction costs.
-* **Beats persistence / Beats seasonal / Beats both baselines** — true only when the model RMSE beats the respective benchmark on the defined evaluation. `False` is a legitimate result. Never force a pass by weakening or changing the benchmark after seeing the result.
-* **Open artifacts folder** — opens the local `artifacts` directory, where CSV/JSON reports and run records are stored.
+## Documentation
 
-## 
+- [`Project Structure.md`](Project%20Structure.md) — repository layout
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — architecture notes
+- [`architectures/`](architectures/) — architecture diagrams and editable Graphviz sources
 
-## E. AWS workflow 
+---
 
-The AWS steps are deliberately separate from local ML training. Run them in order and stop when a step fails.
-
-1. **Install/verify tools.** In a new VS Code PowerShell terminal run aws --version, sam --version, where.exe aws, and where.exe sam. If the commands work in the terminal but not in the GUI, close all VS Code windows and reopen VS Code so the GUI inherits the current PATH.
-
-2. **Set up credentials through the course-approved method.** Prefer a named AWS CLI profile or AWS SSO/Identity Center if your instructor supports it. For a profile, use the profile name your instructor specifies; aws configure sso is one common setup flow. Do not paste credentials into source code or share .env. Static environment credentials can override profile credentials, so remove stale AWS\\\_ACCESS\\\_KEY\\\_ID / AWS\\\_SECRET\\\_ACCESS\\\_KEY values from `.env` when switching to profile authentication.
-3. **Click AWS: Check Identity.** The underlying command is aws sts get-caller-identity. Confirm the account ID and ARN are the expected training account. InvalidClientTokenId indicates the credentials being sent are invalid/expired/mismatched; it is not a SAM-template error.
-4. **Click AWS: Preflight.** Read every line in the Live Run Console. Preflight checks prerequisites/configuration only; it does not prove deployment readiness in every respect and creates no stack by itself.
-5. **Click SAM Validate.** It checks template.yaml locally with linting. Fix errors before continuing.
-6. **Click SAM Build.** It builds the application locally. Inspect .aws-sam/build and the console. It still does not create cloud resources.
-7. **Review the template before deployment.** Inspect template.yaml, docs/AWS\\\_IRONHACK\\\_RUNBOOK.md, region, permissions and resource types. In the current SAM template the core serverless flow is a private S3 bucket plus a scheduled Lambda market collector, an IAM execution role, EventBridge schedule and CloudWatch logs. The SAM template does **not** by itself deploy the full SageMaker training/registry/real-time endpoint/API Gateway workflow. SageMaker helper scripts are a separate optional path and need their own configuration.
-8. **Review cost and permissions.** Confirm the account and region; use the least-privilege permissions your course requires; set a budget alert. S3 storage/requests, Lambda, logs, and any separate SageMaker endpoint/training jobs can incur charges.
-9. **Deploy only after instructor/account review.** The usual interactive command is sam deploy --guided. It creates/updates a CloudFormation stack. Carefully review stack name, region, IAM capabilities and prompts. Never assume that validation/build is deployment.
-10. **Verify.** Check CloudFormation stack status, Lambda function, EventBridge schedule, S3 bucket and CloudWatch logs. Invoke/test the Lambda only as described in the runbook and verify the expected output object.
-11. **Clean up.** Remove the stack when finished and verify that no billable endpoints, training jobs, buckets/objects, log groups, or other separately created resources remain. Some S3 buckets must be emptied before stack deletion.
-
-### 
-
-## 
-
+Built for transparent experimentation, reproducible evaluation, and careful separation between research results and production claims.

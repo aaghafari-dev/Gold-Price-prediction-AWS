@@ -1,4 +1,4 @@
-"""Ironhack-sized SageMaker Pipeline: Processing -> Training -> Evaluation -> quality gate -> Registry."""
+"""project-sized SageMaker Pipeline: Processing -> Training -> Evaluation -> quality gate -> Registry."""
 import boto3
 import sagemaker
 from sagemaker.inputs import TrainingInput

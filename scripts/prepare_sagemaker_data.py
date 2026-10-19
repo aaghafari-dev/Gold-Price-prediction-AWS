@@ -13,9 +13,16 @@ FEATURES = ["close_lag_1", "close_lag_2", "close_lag_5", "return_1d", "return_5d
 def build_frame(source: Path) -> pd.DataFrame:
     """Document the purpose and behavior of build frame. """
     df = pd.read_csv(source)
-    required = {"Date", "Close"}
-    if not required.issubset(df.columns):
-        raise ValueError(f"Input needs columns {sorted(required)}; found {list(df.columns)}")
+    if "Date" not in df.columns:
+        date_col = next((c for c in df.columns if c.lower() == "date"), None)
+        if date_col and date_col != "Date": df = df.rename(columns={date_col: "Date"})
+    if "Close" not in df.columns:
+        close_col = next((c for c in ("gold_close", "GC=F", "close", "Adj Close") if c in df.columns), None)
+        if close_col is None:
+            close_col = next((c for c in df.columns if "gc=f" in c.lower() or "gold" in c.lower()), None)
+        if close_col is not None: df = df.rename(columns={close_col: "Close"})
+    if "Date" not in df.columns or "Close" not in df.columns:
+        raise ValueError(f"Input needs a date column and a gold close column (Close, gold_close, or GC=F); found {list(df.columns)}")
     df["Date"] = pd.to_datetime(df["Date"], errors="coerce", utc=True).dt.tz_localize(None).dt.normalize()
     df["Close"] = pd.to_numeric(df["Close"], errors="coerce")
     if "Volume" not in df: df["Volume"] = 0.0
@@ -42,8 +49,23 @@ def main():
     out = Path(a.output_dir); out.mkdir(parents=True, exist_ok=True)
     frame.iloc[:cut].to_csv(out / "sagemaker_train.csv", index=False)
     frame.iloc[cut:].to_csv(out / "sagemaker_test.csv", index=False)
+    # Also create the normalized raw schema expected by the cloud SageMaker
+    # Processing step. Keep only source columns; cloud Processing engineers features.
+    raw = pd.read_csv(Path(a.input))
+    date_col = next((c for c in raw.columns if c.lower() == "date"), None)
+    close_col = next((c for c in ("Close", "gold_close", "GC=F", "close", "Adj Close") if c in raw.columns), None)
+    if close_col is None: close_col = next((c for c in raw.columns if "gc=f" in c.lower() or "gold" in c.lower()), None)
+    if date_col is None or close_col is None: raise ValueError("Could not normalize raw source into Date/Close columns")
+    normalized = pd.DataFrame({"Date": raw[date_col], "Close": raw[close_col]})
+    volume_col = next((c for c in raw.columns if c.lower() == "volume"), None)
+    normalized["Volume"] = raw[volume_col] if volume_col else 0.0
+    normalized["Date"] = pd.to_datetime(normalized["Date"], errors="coerce", utc=True).dt.tz_localize(None).dt.strftime("%Y-%m-%d")
+    normalized["Close"] = pd.to_numeric(normalized["Close"], errors="coerce")
+    normalized["Volume"] = pd.to_numeric(normalized["Volume"], errors="coerce").fillna(0)
+    normalized = normalized.dropna(subset=["Date", "Close"]).query("Close > 0").drop_duplicates("Date", keep="last").sort_values("Date")
+    normalized.to_csv(out / "bootstrap_market_history.csv", index=False)
     print(f"Rows={len(frame)} train={cut} test={len(frame)-cut}; train_end={frame.iloc[cut-1]['Date']}; test_start={frame.iloc[cut]['Date']}")
-    print(f"Wrote {out / 'sagemaker_train.csv'} and {out / 'sagemaker_test.csv'}")
+    print(f"Wrote {out / 'sagemaker_train.csv'}, {out / 'sagemaker_test.csv'}, and normalized cloud input {out / 'bootstrap_market_history.csv'}")
     print("Note: holdout is chronological; the local research pipeline remains the primary nested walk-forward evaluation.")
 
 if __name__ == "__main__": main()
