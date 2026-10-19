@@ -1,0 +1,78 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Gold Price Prediction V14 - scheduled educational Yahoo Finance market-data collector.
+Globals:
+  Function:
+    Runtime: python3.11
+    Timeout: 120
+    MemorySize: 1024
+    Tracing: Active
+Resources:
+  GoldDataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireOldCollectorSnapshots
+            Status: Enabled
+            Prefix: gold-price-prediction/raw/market/daily/
+            ExpirationInDays: 180
+  CollectorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: ReadWriteCollectorPrefix
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [s3:PutObject, s3:GetObject]
+                Resource:
+                  - !Sub '${GoldDataBucket.Arn}/gold-price-prediction/raw/market/daily/*'
+                  - !Sub '${GoldDataBucket.Arn}/gold-price-prediction/raw/market/bootstrap_market_history.csv'
+  GoldMarketCollector:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/market_collector/
+      Handler: app.lambda_handler
+      Role: !GetAtt CollectorRole.Arn
+      Environment:
+        Variables:
+          DATA_BUCKET: !Ref GoldDataBucket
+          S3_PREFIX: gold-price-prediction
+          GOLD_SYMBOL: GC=F
+          FETCH_PERIOD: 10d
+      Events:
+        DailyCollectorSchedule:
+          Type: Schedule
+          Properties:
+            Name: gold-price-prediction-daily-collector
+            Description: Collect recent daily Yahoo Finance bars; timing is not a certified GC exchange cutoff.
+            Schedule: cron(0 23 ? * MON-FRI *)
+            Enabled: true
+Outputs:
+  DataBucketName:
+    Description: Private S3 bucket for project raw and processed data.
+    Value: !Ref GoldDataBucket
+  CollectorFunctionName:
+    Description: Scheduled market collector Lambda function.
+    Value: !Ref GoldMarketCollector

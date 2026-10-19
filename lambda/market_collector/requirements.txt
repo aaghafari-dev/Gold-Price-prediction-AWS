@@ -1,0 +1,5 @@
+# Pin binary scientific dependencies to stable Python 3.11-compatible wheels for AWS Lambda.
+# Keeping this small and pinned makes `sam build` reproducible on Windows.
+yfinance==0.2.66
+pandas==2.2.3
+numpy==1.26.4

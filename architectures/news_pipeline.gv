@@ -1,0 +1,18 @@
+digraph NewsPipelineV10 {
+  graph [rankdir=TB, bgcolor="#0b1220", pad="0.25", nodesep="0.35", ranksep="0.48", fontname="Arial", label="V10 News Ingestion and FinBERT Sentiment", labelloc=t, fontsize=20, fontcolor="#f5c451"];
+  node [shape=box, style="rounded,filled", fontname="Arial", fontsize=10, color="#45617e", fontcolor="#edf4ff", fillcolor="#17243a"];
+  edge [color="#8aa6c1", fontname="Arial", fontsize=9, fontcolor="#dbeafe"];
+  gui [label="Tkinter provider selection"];
+  rss [label="Google News RSS\nno API key", fillcolor="#143a36", color="#3a9d87"];
+  api [label="NewsAPI / Alpha Vantage\noptional API keys"];
+  old [label="Legacy GDELT / Yahoo\noptional adapters"];
+  normalize [label="Normalize timestamps + deduplicate\nprovider-level status / error log"];
+  archive [label="Append-only archive\nnews.csv + ingestion log"];
+  finbert [label="ProsusAI/FinBERT\npositive / negative / neutral probabilities"];
+  vector [label="Signed sentiment score\nconfidence + magnitude"];
+  live [label="Five-minute polling monitor\n30m / 2h / 24h EWMA snapshots"];
+  eval [label="Historical point-in-time alignment\nonly after verified archive exists"];
+  gui -> rss; gui -> api; gui -> old; rss -> normalize; api -> normalize; old -> normalize; normalize -> archive -> finbert -> vector; vector -> live; vector -> eval;
+  note [shape=note, label="A recent RSS feed is not a historical archive.\nLive monitor does not equal validated intraday forecasting.", fillcolor="#3a2f1a", color="#b38a34", fontcolor="#fff1c2"];
+  live -> note [style=dotted, arrowhead=none];
+}

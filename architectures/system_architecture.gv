@@ -1,0 +1,68 @@
+digraph V4System {
+
+    graph [rankdir=TB, bgcolor="#0A1220", pad="0.28", nodesep="0.34", ranksep="0.48", splines=ortho, fontname="Segoe UI", labeljust="l", labelloc="t", fontsize=20, fontcolor="#F5C451"];
+    node [shape=box, style="rounded,filled", fontname="Segoe UI", fontsize=10, color="#536780", fontcolor="#F4F7FB", penwidth=1.35, margin="0.16,0.10"];
+    edge [color="#9BB0CA", fontname="Segoe UI", fontsize=9, fontcolor="#D4DFEC", arrowsize=0.7, penwidth=1.2];
+
+label="AURUMLAB V4 | END-TO-END GOLD FORECASTING — IMPLEMENTED WORKFLOW + EXPLICIT LIMITS";
+subgraph cluster_sources { label="1. INPUT SOURCES (NO LICENSED DATA FEED)"; color="#2F8F83"; fontcolor="#71E2D0"; style="rounded";
+ market_src [label="Yahoo Finance daily OHLCV
+Gold target: GC=F; context: DXY, SI=F, CL=F, S&P 500, VIX, ^TNX, FX", fillcolor="#164E63"];
+ gdelt [label="GDELT DOC API v2
+GET /api/v2/doc/doc; mode=ArtList; format=json; sort=DateDesc
+Timespan supplied by user (default 7d); max 250 results", fillcolor="#164E63"];
+ ynews [label="Yahoo Finance ticker news
+yfinance.Ticker(symbol).get_news(count=100)
+Recent feed; default filter NEWS_LOOKBACK_DAYS=3", fillcolor="#164E63"];
+}
+subgraph cluster_ingest { label="2. NORMALIZE / ARCHIVE / DATA CONTRACTS"; color="#3975B8"; fontcolor="#8DC4FF"; style="rounded";
+ norm [label="Normalize fields + UTC timestamps
+published_at, retrieved_at, title, summary, source, URL
+Deduplicate by timestamp + title + URL", fillcolor="#183A60"];
+ archive [label="CSV archive + query-attempt log
+data/raw/news.csv + news_ingestion_log.csv
+Log records attempted windows, NOT completeness", fillcolor="#183A60"];
+ market_panel [label="Daily market cache
+Date normalization, duplicate/price validation, context joins
+Optional context series must not silently become target data", fillcolor="#183A60"];
+}
+subgraph cluster_features { label="3. FEATURES / TARGET / TIMING"; color="#7C5AB8"; fontcolor="#D6B8FF"; style="rounded";
+ features [label="Market predictors
+Gold lags 1,2,3,5,10,20; moving means / vol 5,10,20,60
+Lagged returns / momentum; related-asset returns", fillcolor="#382957"];
+ newsfeat [label="News predictors
+English keyword lexicon on title + summary
+Daily counts, mean/std score, positive/negative share, source count, observed flag", fillcolor="#382957"];
+ cutoff [label="Leakage guard / forecast convention
+Next market-row close target (horizon=1 by default)
+News features shifted one market row
+UTC-day proxy, not exchange-close reconstruction", fillcolor="#382957"];
+}
+subgraph cluster_eval { label="4. EVALUATION / GOVERNANCE"; color="#B7791F"; fontcolor="#F5C451"; style="rounded";
+ gate [label="News gate
+Query-window span threshold default 0.80 is only a minimum safeguard
+Verified archive required for eligible news model; optional exploratory override", fillcolor="#5B4316"];
+ cv [label="Walk-forward validation
+sklearn TimeSeriesSplit; 5 folds; gap = target horizon
+No random shuffle; same dates for feature-set comparisons", fillcolor="#5B4316"];
+ compare [label="Models + benchmarks
+XGBoost, Random Forest, Extra Trees, HistGradientBoosting
+Persistence + 5-session seasonal-naive; RMSE/MAE/direction
+Moving-block-bootstrap 95% RMSE interval", fillcolor="#5B4316"];
+ governance [label="Candidate governance
+Must beat configured baselines + improvement threshold
+Exploratory unverified-news candidate cannot be promoted
+Human approval is separate", fillcolor="#5B4316"];
+}
+subgraph cluster_ops { label="5. SERVING / OPTIONAL AWS"; color="#4D9B71"; fontcolor="#8EF0C9"; style="rounded";
+ api [label="Local FastAPI + Tkinter GUI
+Feature schema validation; local /docs; live console + metric table", fillcolor="#164A3A"];
+ aws [label="Optional SageMaker path
+S3 → Processing/Training → evaluation → Model Registry
+Manual approval → endpoint → monitoring; incurs AWS cost", fillcolor="#164A3A"];
+ audit [label="Reproducibility artifacts
+model_comparison.csv, training_result.json, run audit JSON
+feature manifest, candidate/champion manifests, hashes", fillcolor="#3B2B50", color="#9D82C4"];
+}
+market_src -> market_panel; gdelt -> norm; ynews -> norm; norm -> archive; market_panel -> features; archive -> newsfeat; features -> cutoff; newsfeat -> cutoff; cutoff -> gate -> cv -> compare -> governance; compare -> audit; gate -> audit; governance -> api; governance -> aws;
+}

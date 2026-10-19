@@ -1,0 +1,33 @@
+digraph SageMaker {
+
+    graph [rankdir=TB, bgcolor="#0A1220", pad="0.28", nodesep="0.34", ranksep="0.48", splines=ortho, fontname="Segoe UI", labeljust="l", labelloc="t", fontsize=20, fontcolor="#F5C451"];
+    node [shape=box, style="rounded,filled", fontname="Segoe UI", fontsize=10, color="#536780", fontcolor="#F4F7FB", penwidth=1.35, margin="0.16,0.10"];
+    edge [color="#9BB0CA", fontname="Segoe UI", fontsize=9, fontcolor="#D4DFEC", arrowsize=0.7, penwidth=1.2];
+
+label="V4 | OPTIONAL AWS SAGEMAKER MLOPS — CLOUD PATH, GOVERNANCE AND COST BOUNDARIES";
+local [label="Windows / VS Code development
+Python 3.11; tests; local Tkinter GUI
+No AWS resources needed for research workflow", fillcolor="#164E63"];
+s3 [label="Amazon S3 data/artifact boundary
+Versioned input snapshot, feature manifest, audit metadata
+Bucket, region, encryption and lifecycle configured by user", fillcolor="#183A60"];
+processing [label="SageMaker Processing
+Validate schema, build feature table, split chronologically
+No web-scraping task; ingest from selected provider adapters separately", fillcolor="#183A60"];
+training [label="SageMaker Training
+Training entry point + configured estimator
+Model artifact and dependency versions captured", fillcolor="#5B4316"];
+evaluate [label="Evaluation gate
+Compare held-out RMSE/MAE with persistence baseline
+Reject candidate if schema/metric thresholds fail", fillcolor="#5B4316"];
+registry [label="SageMaker Model Registry
+Register only evaluated package
+ApprovalStatus=PendingManualApproval", fillcolor="#382957"];
+approve [label="Human approval / controlled rollout
+Least-privilege IAM; endpoint naming; canary/rollback plan
+Do not promote exploratory unverified-news model", fillcolor="#164A3A"];
+endpoint [label="Real-time endpoint + monitoring
+Input/output logs; delayed actual-price error; feature drift and freshness
+Endpoint deletion and budget alerts required", fillcolor="#164A3A"];
+local -> s3 -> processing -> training -> evaluate -> registry -> approve -> endpoint;
+}

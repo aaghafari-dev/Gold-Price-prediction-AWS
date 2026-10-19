@@ -1,0 +1,26 @@
+digraph Serving {
+
+    graph [rankdir=TB, bgcolor="#0A1220", pad="0.28", nodesep="0.34", ranksep="0.48", splines=ortho, fontname="Segoe UI", labeljust="l", labelloc="t", fontsize=20, fontcolor="#F5C451"];
+    node [shape=box, style="rounded,filled", fontname="Segoe UI", fontsize=10, color="#536780", fontcolor="#F4F7FB", penwidth=1.35, margin="0.16,0.10"];
+    edge [color="#9BB0CA", fontname="Segoe UI", fontsize=9, fontcolor="#D4DFEC", arrowsize=0.7, penwidth=1.2];
+
+label="V4 | LOCAL MODEL SERVING, INPUT CONTRACTS AND MONITORING";
+client [label="Client / GUI / API docs
+HTTP POST /predict; JSON feature dictionary", fillcolor="#164E63"];
+api [label="FastAPI service
+Pydantic request validation; missing/extra/non-finite inputs rejected
+Loads champion_model.joblib + champion_manifest.json", fillcolor="#183A60"];
+check [label="Schema and governance check
+Feature names/order match manifest; champion must be human-approved
+Candidate artifact is never served directly", fillcolor="#5B4316"];
+predict [label="Prediction response
+Predicted next-session close + model metadata
+Appends forecast timestamp, as_of_date, features and model ID to logs/prediction_ledger.csv", fillcolor="#164A3A"];
+monitor [label="Monitoring loop (research prototype)
+Input freshness/schema checks; PSI for numeric feature drift
+When target arrives, calculate realized MAE/RMSE and directional accuracy", fillcolor="#164A3A"];
+alert [label="Alert / retraining decision
+Drift is a signal, not proof of model failure
+Require enough matured labels and human review before retraining", fillcolor="#382957"];
+client -> api -> check -> predict -> monitor -> alert;
+}

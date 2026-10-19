@@ -1,0 +1,41 @@
+digraph GoldPricePrediction  {
+  graph [rankdir=TB, bgcolor="#0b1220", pad="0.28", nodesep="0.38", ranksep="0.52", fontname="Arial", label="Gold Price Prediction hitecture", labelloc=t, fontsize=22, fontcolor="#f5c451"];
+  node [shape=box, style="rounded,filled", fontname="Arial", fontsize=10, color="#45617e", fontcolor="#edf4ff", fillcolor="#17243a", margin="0.16,0.11"];
+  edge [color="#8aa6c1", fontname="Arial", fontsize=9, fontcolor="#dbeafe", arrowsize=0.8];
+  subgraph cluster_local { label="LOCAL DEVELOPMENT"; color="#47758d"; fontcolor="#8de6d1"; style="rounded";
+    gui [label="Tkinter GUI\nShared news/market window + hover plots + train/test fraction + metrics"];
+    market [label="Yahoo Finance market bars\nGC=F daily proxy"];
+    rss [label="Google News RSS\nKey-free headline search", fillcolor="#143a36", color="#3a9d87"];
+    api_news [label="Optional NewsAPI / Alpha Vantage\nRequires user's API key"];
+    legacy [label="Optional legacy GDELT / Yahoo news"];
+    normalize [label="Normalize timestamps + deduplicate\nProvider status/error log; preserve old archive"];
+    nlp [label="Pretrained ProsusAI/FinBERT\npositive / negative / neutral probabilities\nscore + confidence + magnitude"];
+    features [label="Quality audit + point-in-time alignment\ncurrent close + return target + lagged sentiment"];
+    split [label="Chronological split\nDevelopment set + configurable final holdout"];
+    cv [label="Walk-forward CV\ninner tuning + fold-local feature selection"];
+    test [label="Untouched holdout metrics\nRMSE / MAE / direction vs persistence"];
+    gate [label="Baseline gate + human approval"];
+    serving [label="Local FastAPI"];
+    live [label="Optional five-minute headline polling\nEWMA sentiment snapshots\nNOT a validated intraday price model", fillcolor="#3a2f1a", color="#b38a34"];
+    gui -> market; gui -> rss; gui -> api_news; gui -> legacy;
+    rss -> normalize; api_news -> normalize; legacy -> normalize; normalize -> nlp -> features; market -> features;
+    features -> split -> cv -> test -> gate -> serving; gui -> live;
+  }
+  subgraph cluster_aws { label="AWS TEMPLATE.YAML — CURRENTLY DEPLOYABLE SCOPE"; color="#b38a34"; fontcolor="#f5c451"; style="rounded";
+    event [label="EventBridge weekday schedule", fillcolor="#3a2f1a", color="#b38a34"];
+    lambda [label="Lambda market collector\nPython 3.11", fillcolor="#3a2f1a", color="#b38a34"];
+    s3 [label="Private encrypted/versioned S3 bucket\nmarket snapshots", fillcolor="#3a2f1a", color="#b38a34"];
+    iam [label="Least-scope Lambda IAM role", fillcolor="#3a2f1a", color="#b38a34"];
+    logs [label="CloudWatch Logs", fillcolor="#3a2f1a", color="#b38a34"];
+    event -> lambda -> s3; iam -> lambda; lambda -> logs;
+  }
+  subgraph cluster_future { label=" "; style="rounded,dashed";
+    proc [label="SageMaker Processing", style="rounded,dashed,filled", fillcolor="#17243a"];
+    train [label="SageMaker Training + Evaluation", style="rounded,dashed,filled", fillcolor="#17243a"];
+    registry [label="Model Registry / manual approval", style="rounded,dashed,filled", fillcolor="#17243a"];
+    endpoint [label="SageMaker endpoint / API", style="rounded,dashed,filled", fillcolor="#17243a"];
+    monitor [label="CloudWatch / Model Monitor", style="rounded,dashed,filled", fillcolor="#17243a"];
+    proc -> train -> registry -> endpoint -> monitor [style=dashed];
+  }
+  test -> s3 [style=dashed, label="reviewed artifacts (manual step)"];
+}

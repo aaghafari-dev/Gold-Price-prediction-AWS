@@ -1,0 +1,27 @@
+digraph Deployment {
+
+    graph [rankdir=TB, bgcolor="#0A1220", pad="0.28", nodesep="0.34", ranksep="0.48", splines=ortho, fontname="Segoe UI", labeljust="l", labelloc="t", fontsize=20, fontcolor="#F5C451"];
+    node [shape=box, style="rounded,filled", fontname="Segoe UI", fontsize=10, color="#536780", fontcolor="#F4F7FB", penwidth=1.35, margin="0.16,0.10"];
+    edge [color="#9BB0CA", fontname="Segoe UI", fontsize=9, fontcolor="#D4DFEC", arrowsize=0.7, penwidth=1.2];
+
+label="V4 | DEPLOYMENT — LOCAL-FIRST WINDOWS WORKFLOW AND OPTIONAL CLOUD EXTENSION";
+vs [label="VS Code on Windows 11
+Python 3.11; .venv; PowerShell
+Graphviz .gv sources + tests", fillcolor="#164E63"];
+gui [label="AurumLab desktop GUI
+Tkinter/ttk; no Streamlit
+Async subprocess log; controls for news query/window, years, gate, sentiment and optional robust seeds", fillcolor="#183A60"];
+local [label="Local research pipeline
+Fetch → validate → engineer → walk-forward evaluate → audit artifacts
+CPU-safe joblib default LOKY_MAX_CPU_COUNT=4", fillcolor="#5B4316"];
+approval [label="Local governance
+Review CSV/JSON metrics; explicit candidate approval
+Only approved champion served by FastAPI", fillcolor="#164A3A"];
+api [label="Local API
+127.0.0.1:8000/docs
+No cloud costs; use local data/cache", fillcolor="#164A3A"];
+cloud [label="Optional AWS path
+S3 → SageMaker Processing/Training → Registry → manual approval → endpoint
+Credentials/IAM required; endpoint costs money", fillcolor="#382957"];
+vs -> gui -> local -> approval -> api; local -> cloud;
+}

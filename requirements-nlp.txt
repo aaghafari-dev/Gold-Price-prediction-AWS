@@ -1,0 +1,4 @@
+# Optional only for the lexicon-vs-FinBERT sentiment experiment.
+# Installs PyTorch/Transformers and downloads a pretrained model on first use.
+transformers>=4.45,<5
+torch>=2.4

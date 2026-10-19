@@ -10,11 +10,20 @@ data/raw/*
 data/processed/*
 models/*.joblib
 models/champion_manifest.json
+models/candidate_manifest.json
 artifacts/*
 logs/*
 !.gitkeep
 .DS_Store
+.env
+.env.*
+!.env.example
 .venv/
 __pycache__/
-*.pyc
+.pytest_cache/
 
+.env
+
+.env.*
+
+.aws-sam/

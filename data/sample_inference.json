@@ -1,0 +1,14 @@
+{
+  "features": {
+    "close_lag_1": 2400.0,
+    "close_lag_2": 2390.0,
+    "close_lag_5": 2380.0,
+    "return_1d": 0.004,
+    "return_5d": 0.01,
+    "rolling_mean_5": 2395.0,
+    "rolling_std_5": 8.0,
+    "rolling_mean_20": 2370.0,
+    "rolling_std_20": 20.0,
+    "volume_lag_1": 120000.0
+  }
+}
